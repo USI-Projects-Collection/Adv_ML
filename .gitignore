@@ -94,6 +94,7 @@ node_modules/
 *.toc
 *.xdv
 *.xml
+*.bib
 
 # TikZ / PGFPlots externalization
 *.tikz
