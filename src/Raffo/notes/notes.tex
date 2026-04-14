@@ -1,0 +1,101 @@
+\documentclass[12pt]{article}
+ 
+\usepackage[margin=0.5in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tabularx}
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\setlength{\parindent}{0pt}
+ 
+\newenvironment{theorem}[2][Theorem]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{lemma}[2][Lemma]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{exercise}[2][Exercise]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{problem}[2][Problem]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{question}[2][Question]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{corollary}[2][Corollary]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+
+\newenvironment{solution}{\begin{proof}[Solution]}{\end{proof}}
+ 
+\begin{document}
+ 
+% --------------------------------------------------------------
+%                         Start here
+% --------------------------------------------------------------
+ 
+\title{Replication Notes}
+\maketitle
+
+\section{Unsupervised Object Discovery (LOST) on DINOv2}
+\textbf{Objective:} To replicate Section 3.3 demonstrating that appending register tokens to modern Vision Transformers (like DINOv2) eliminates high-norm artifact tokens from local feature maps, making them compatible with the unsupervised LOST (Localizing Objects with Self-supervised Transformers) algorithm.
+\textbf{Key Steps:}
+\begin{enumerate}
+    \item \textbf{Feature Extraction: Intercepting the Keys}\\
+        The LOST algorithm requires spatial feature representations from the final layer of the transformer. To extract these without modifying the underlying model architecture, a PyTorch forward hook (\texttt{AttentionKeyExtractor}) is attached to the final self-attention block (\texttt{model.blocks[-1].attn}).
+
+        \textbf{Correlation with the Paper:}
+        The authors explicitly state that the location of clean spatial features depends on the model's pretraining objective: \textit{"we use values for DeiT and OpenCLIP, and for DINOv2, we use keys"}.
+        Therefore, the hook intercepts the input tensor X, passes it through the QKV linear projection, and strictly isolates the Keys (K).
+        
+        \textbf{Token Slicing:}
+        Before passing the features to the LOST algorithm, the non-spatial special tokens must be discarded.
+        \begin{itemize}
+            \item Baseline DINOv2: The sequence length contains 1 \texttt{[CLS]} token followed by the image patches. The first token is sliced off: \texttt{keys\_no\_reg[1:, :]}.
+            \item DINOv2 with Registers: The sequence contains 1 \texttt{[CLS]} token and 4 \texttt{[REG]} tokens. The first 5 tokens must be discarded so the algorithm only computes the similarity of the physical image patches: \texttt{keys\_reg\_4[5:, :]}.
+        \end{itemize}
+    \item \textbf{Computing the Similarity Graph (Gram Matrix)}\\
+        The core of the LOST algorithm relies on building an adjacency graph that measures the semantic similarity between every spatial patch in the image.\\
+        \textbf{Mathematical Formulation:}
+        Let $K_p$ be the matrix of spatial key embeddings where each row represents a patch. The features are first $L_2$-normalized to focus on directional semantic similarity (Cosine Similarity) rather than magnitude:
+        \[
+            \hat{K}_p = \frac{K_p}{\|K_p\|_2}
+        \]
+        The Gram matrix $G$, which represents the pairwise similarity between all patches, is computed via the dot product:
+        \[
+            G = \hat{K}_p \hat{K}_p^\top + b
+        \]
+        \textbf{Correlation with the Paper:}
+        The scalar term b corresponds to the paper's crucial implementation detail: \textit{"Because the output features may have different conditioning, we manually add a bias to the gram matrix of features"}. While DINOv2 generally functions well with $b=0.0$, supervised models like DeiT-III require this bias to re-center the similarity scores before thresholding.
+    \item \textbf{The LOST Heuristic: Seed Selection}\\
+        The LOST algorithm assumes that an image consists of a uniform background and a distinct foreground object.\\
+        \textbf{Mathematical Formulation:}
+        The continuous similarity matrix G is converted into a binary adjacency matrix A using a threshold $\tau$ (set to 0.0 in this implementation):
+        \[
+        A_{ij} = \begin{cases}
+        1 & \text{if } G_{ij} > \tau \\
+        0 & \text{otherwise}
+        \end{cases}
+        \]
+        The degree $d_i$ of each patch $i$ (representing how many other patches it is highly correlated with) is computed by summing the rows of A:
+        \[
+        d_i = \sum_{j} A_{ij}
+        \]
+        \textbf{Correlation with the Paper:}\\
+        Background patches are visually and semantically similar to a vast number of other background patches, resulting in a very high degree d. Conversely, patches belonging to a unique foreground object will have a much lower degree. The algorithm selects the "seed" patch belonging to the object by finding the minimum degree:
+        \[
+        \text{seed} = \arg\min_i(d_i)
+        \]
+        Once the seed is identified, the algorithm expands the selection by visualizing the raw similarity scores between the seed patch and all other patches ($G_{\text{seed}}$), yielding the final object discovery map.
+    \item \textbf{Experimental Results and Conclusion}\\
+        By feeding a $518 \times 518$ image into both the baseline DINOv2 and the 4-register DINOv2 models, the code generates side-by-side similarity maps that visually prove the paper's core hypothesis.
+        \begin{itemize}
+            \item Baseline Model (No Registers): The resulting map is noisy and fails to cleanly isolate the object. This visually confirms the presence of "artifacts... corresponding to high-norm tokens appearing during inference primarily in low-informative background areas". The model repurposed spatial background patches to store global information, corrupting the K embeddings and breaking the LOST similarity graph.
+            \item Modified Model (With Registers): The resulting map smoothly and accurately highlights the object. This confirms that providing the model with "additional tokens to the input sequence... to fill that role" successfully absorbs the global background information. The spatial patches remain pure, enabling state-of-the-art unsupervised object discovery.
+        \end{itemize}
+        \begin{figure}[H]
+            \centering
+            \includegraphics[width=0.8\textwidth]{../img/Figure_Dog.png}
+            \caption{Comparison of LOST similarity maps between baseline DINOv2 and DINOv2 with 4 register tokens. The left image (baseline) shows a noisy map with high similarity scores scattered across the background, while the right image (with registers) shows a clean map that accurately highlights the foreground object.}
+        \end{figure}
+\end{enumerate}
+\end{document}
