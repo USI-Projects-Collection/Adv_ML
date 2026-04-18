@@ -1,0 +1,138 @@
+\documentclass[10pt]{article} % For LaTeX2e
+
+% This template and styling file have been adapted from the ML Reproducibility Challenge 2020 and TMLR templates, to ease the submission.
+
+% If you want to show the general instructions, use the following command:
+\usepackage[instructions]{atml}
+% For the final version, use this one:
+%\usepackage{atml}
+
+% If you want to submit this work to tmlr, use the "tmlr" package rather than the "atml" one. Note: double-check the files needed in TMLR's submission instructions. 
+% \usepackage{tmlr}
+% If accepted, instead use the following line for the camera-ready submission:
+%\usepackage[accepted]{tmlr}
+% To de-anonymize and remove mentions to TMLR (for example for posting to preprint servers), instead use the following:
+%\usepackage[preprint]{tmlr}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{ATML Report}
+
+\author{%
+  \name Name1 Surname1 \email stud1@usi.ch
+  \AND
+  \name Name2 Surname2 \email stud2@usi.ch
+}
+
+\def\groupid{---}
+\def\projectid{---}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+ Concise and self-contained description of your project, motivation, and main findings.
+\end{abstract}
+
+%%%%
+
+\section{Introduction}
+A few sentences placing the work in high-level context. Limit it to a few paragraphs at most; your report is on reproducing a piece of work, you don’t have to motivate that work.
+
+\section{Scope of reproducibility}
+\label{sec:claims}
+
+Introduce the specific setting or problem addressed in this work, and list the main claims from the original paper. Think of this as writing out the main contributions of the original paper. Each claim should be relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of the presented experiments.
+
+A claim should be something that can be supported or rejected by your data. An example is, ``Finetuning pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.''
+This is concise and is something that can be supported by experiments.
+An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z."
+
+This section roughly tells a reader what to expect in the rest of the report. Clearly itemize the claims you are testing:
+\begin{itemize}
+    \item Claim 1
+    \item Claim 2
+    \item Claim 3
+\end{itemize}
+
+Each experiment in Section~\ref{sec:results} will support (at least) one of these claims, so a reader of your report should be able to separately understand the \emph{claims} and the \emph{evidence} that supports them.
+
+\section{Methodology}
+Explain your approach - did you use the author's code, or did you aim to re-implement the approach from the description in the paper? Summarize the resources (code, documentation, GPUs) that you used.
+
+\subsection{Model descriptions}
+Include a description of each model or algorithm used. Be sure to list the type of model, the number of parameters, and other relevant info (e.g. if it's pre-trained). 
+
+\subsection{Datasets}
+Describe the datasets you used and how you obtained them. For each dataset include 1) relevant statistics such as the number of examples and label distributions, 2) details of train / validation / test splits, 3) an explanation of any preprocessing done, and 4) a link to download the data (if available).
+
+\subsection{Hyperparameters}
+Describe how the hyperparameter values were set and what was the source for their value (e.g. paper, code, or your guess). If there was a hyperparameter search done, be sure to include the range of hyperparameters searched over, the method used to search (e.g. manual search, random search, grid search, etc.), and the best hyperparameters found. Include the number of total experiments (e.g. hyperparameter trials). You can also include all results from that search (not just the best-found results).
+
+\subsection{Experimental setup and code}
+Include a description of how the experiments were set up that's clear enough a reader could replicate the setup. 
+Include a description of the specific measure used to evaluate the experiments (e.g. accuracy, precision@K, BLEU score, etc.). 
+Provide a link to your code or notebook (if available). Add in this section (or in the following) any reference to cloud-based providers you 
+
+\subsection{Computational requirements}
+Include a description of the hardware used, such as the GPU or CPU the experiments were run on. 
+For each model, include a measure of the average runtime (e.g. average time to predict labels for a given validation set with a particular batch size).
+For each experiment, include the total computational requirements (e.g. the total GPU hours spent).\\
+\textbf{Note:} You'll likely have to record this as you run your experiments, so it's better to think about it ahead of time.
+
+\section{Results}
+\label{sec:results}
+Start with a high-level overview of your results. Do your results support the main claims of the original paper? Keep this section as factual and precise as possible, and reserve your judgment and discussion points for the next "Discussion" section. 
+
+
+\subsection{Results reproducing original paper}
+For each experiment, say 1) which claim in Section~\ref{sec:claims} it supports, and 2) if it successfully reproduced the associated experiment in the original paper. 
+For example, an experiment training and evaluating a model on a dataset may support a claim that that model outperforms some baseline.
+Logically group related results into subsections. 
+
+\subsubsection{Result 1}
+\subsubsection{Result 2}
+
+\subsection{Results beyond original paper}
+Often papers don't include enough information to fully specify their experiments, so some additional experimentation may be necessary. For example, it might be the case that batch size was not specified, and so different batch sizes need to be evaluated to reproduce the original results. Include the results of any additional experiments here. Note: this won't be necessary for all reproductions.
+ 
+\subsubsection{Additional Result 1}
+\subsubsection{Additional Result 2}
+
+\section{Discussion}
+
+Give your judgment on if your experimental results support the claims of the paper. Discuss the strengths and weaknesses of your approach - perhaps you didn't have time to run all the experiments, or perhaps you did additional experiments that further strengthened the claims in the paper.
+
+\subsection{What was easy}
+Give your judgment of what was easy to reproduce. Perhaps the author's code is clearly written and easy to run, so it was easy to verify the majority of original claims. Or, the explanation in the paper was really easy to follow and put into code. 
+
+Be careful not to give sweeping generalizations. Something that is easy for you might be difficult for others. Put what was easy in context and explain why it was easy (e.g. code had extensive API documentation and a lot of examples that matched experiments in papers).
+
+\subsection{What was difficult}
+List part of the reproduction study that took more time than you anticipated or you felt was difficult. 
+
+Be careful to put your discussion in context. For example, don't say "The maths was difficult to follow", say "The math requires advanced knowledge of calculus to follow". 
+
+\subsection{Communication with original authors}
+Document the extent of (or lack of) communication with the original authors. To make sure the reproducibility report is a fair assessment of the original research we recommend getting in touch with the original authors. We advise you to contact them through their email displayed in the paper and by asking specific questions.
+
+\section{Conclusion}
+Try to summarize the achievements of your project and its limits, suggesting (when appropriate) possible extensions and future works.
+
+\section*{Member contributions}
+Include a section specifying how you organized the work within the group and clearly describe the contributions of each member. Make sure to properly balance the workload among the members.
+
+%%%%
+
+\bibliography{main}
+\bibliographystyle{tmlr}
+
+\include{appendix}
+
+\end{document}
