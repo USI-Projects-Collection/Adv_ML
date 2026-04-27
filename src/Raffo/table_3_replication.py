@@ -10,6 +10,14 @@ import timm
 import open_clip
 from transformers import AutoModel
 
+# ==================================================
+# FINAL TABLE 3 RESULTS  (VOC 2007 trainval)
+# ==================================================
+# Model                            CorLoc      Paper
+# DINOv2_NoReg                      14.5%      35.3%
+# DINOv2_WithReg                    25.0%      55.4%
+# OpenCLIP_NoReg                    14.2%      38.8%
+# OpenCLIP_TestTimeReg              23.8%      37.1%
 # ==========================================
 # DEBUGGING UTILITY
 # ==========================================
@@ -39,6 +47,12 @@ def probe_token_sequence(model, model_backend, device, patch_size=14, img_size=2
         handle = model.visual.transformer.resblocks[-1].attn.register_forward_hook(make_hook("last_attn_input"))
         with torch.no_grad():
             _ = model.encode_image(dummy_input)
+        handle.remove()
+    elif model_backend == "open_clip_hf":
+        # The fix for the Custom Hugging Face wrapper
+        handle = model.model.visual.transformer.resblocks[-1].attn.register_forward_hook(make_hook("last_attn_input"))
+        with torch.no_grad():
+            _ = model.model.encode_image(dummy_input)
         handle.remove()
     elif model_backend == "hf_clip":
         handle = model.vision_model.encoder.layers[-1].self_attn.register_forward_hook(make_hook("last_attn_input"))
@@ -276,7 +290,7 @@ def evaluate_dataset(config, dataset):
         model = AutoModel.from_pretrained(
             config["model_name"], trust_remote_code=True
         ).to(device).eval()
-        model_backend = "hf_clip"
+        model_backend = "open_clip_hf"
 
     # ------------------------------------------------------------------
     # Probe to find the true number of special tokens (CLS + registers)
