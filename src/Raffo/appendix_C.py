@@ -277,7 +277,7 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             # ----------------------------------------------------------------
             "model_name": [
                 # EVA-02 ViT-B with 4 registers — same patch size, same reg count
-                "eva02_base_patch16_clip_224.merged2b",
+                # "eva02_base_patch16_clip_224.merged2b",
                 # Generic ViT-B with registers from SBB training
                 "vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k",
                 "vit_base_patch16_reg8_gap_256.sbb2_in12k_ft_in1k",
@@ -351,9 +351,23 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
 
     for cfg in configs:
         print(f"  Loading {cfg['label'].replace(chr(10), ' ')} ...")
-        img_size   = cfg["img_size"]
-        grid_size  = img_size // cfg["patch_size"]
+        
+        # 1. Load the model FIRST
+        model, backend, num_special = load_model(cfg, device)
+        
+        # 2. Dynamically fetch required resolution to prevent crashes
+        if backend == "timm":
+            # timm models store their required input size in default_cfg
+            img_size = model.default_cfg['input_size'][1]
+            patch_size = model.patch_embed.patch_size[0]
+        else:
+            # OpenCLIP and HF use standard 224x224
+            img_size = cfg["img_size"]
+            patch_size = cfg["patch_size"]
+            
+        grid_size = img_size // patch_size
 
+        # 3. Transform image to the model's native size
         image = Image.open(image_path).convert("RGB")
         transform = T.Compose([
             T.Resize((img_size, img_size)),
@@ -363,13 +377,14 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
         input_tensor = transform(image).unsqueeze(0).to(device)
         all_images.append(image.resize((img_size, img_size)))
 
-        model, backend, num_special = load_model(cfg, device)
+        # 4. Extract features
         patch_feats = get_patch_features(
             model, backend, num_special, input_tensor,
             feature_type=cfg["type"], bias=cfg["bias"]
         )
         del model  # free VRAM before loading next model
 
+        # 5. Run LOST stages
         lost_score, dot_prod, seed_exp, seed_idx = lost_intermediate_stages(
             patch_feats, bias=cfg["bias"]
         )

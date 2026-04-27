@@ -142,6 +142,62 @@ When applying the test-time registers, the LOST similarity map successfully isol
         The Test-Time Registers: When you look at the OpenCLIP\_TestTimeReg map, it actually has a few more bright yellow edge artifacts than the baseline. This perfectly explains the data in Table 3 of the paper: adding registers to OpenCLIP actually caused a slight drop in unsupervised object discovery performance (from 38.8 CorLoc down to 37.1)!
 \end{enumerate}
 
+\subsection{Appendix C}
+\subsubsection{Decoding Figure 13: The Anatomy of the LOST Algorithm}
+This figure acts like an X-ray, letting you peek inside the LOST algorithm step-by-step to see where things go wrong when a model doesn't have registers.\\
+
+\textbf{Understanding the Rows (The Algorithm Steps):}
+\begin{itemize}
+    \item Row 1 (LOST Score): This is the "inverse degree" map. The algorithm looks for patches that are least similar to the rest of the image (the "outcasts"). High values (bright yellow/green) mean "I am very isolated, I might be the object."
+
+    \item Row 2 (Dot Prod. w/ Seed): The algorithm picks the brightest pixel from Row 1 as the "seed" and calculates how similar every other patch is to that specific seed.
+
+    \item Row 3 (Seed Expansion): This is the final binary mask. It simply takes Row 2 and turns everything above the threshold to white (1) and everything below to black (0).
+\end{itemize}
+
+\textbf{Understanding the Columns (The Findings):}
+\begin{itemize}
+    \item DINOv2 (Columns 5 vs 6): This is the most dramatic proof in the paper. Look at Column 5 (w/o REG), Row 1. There are random bright yellow dots in the grass! These are the "high-norm artifacts." Because they are so weird, the LOST algorithm thinks they are the object. The resulting mask (bottom row) is totally shattered. Now look at Column 6 (w/ REG). The artifacts are gone. The LOST score perfectly highlights the dog, and the final binary mask is a solid, recognizable silhouette.
+
+    \item DeiT-III (Columns 1 vs 2): You see the exact same story here. Without registers, the background is littered with noisy yellow artifact dots, confusing the algorithm. With registers (your proxy model), the noise vanishes.
+
+    \item OpenCLIP (Columns 3 vs 4): This is the anomaly. Even without registers, OpenCLIP's LOST score (Row 1) loosely finds the dog, and the final mask isn't completely shattered. Adding test-time registers (Column 4) cleans it up slightly, but the difference isn't huge. Why did OpenCLIP survive without registers? That brings us to Figure 14.
+
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../img/Figure_13.png}
+    \caption{Visualization of the LOST algorithm's intermediate steps for DeiT-III, OpenCLIP, and DINOv2, with and without registers. The first row shows the inverse degree map (LOST score), the second row shows the similarity to the seed patch, and the third row shows the final binary mask after thresholding. The presence of high-norm artifacts in the no-register models leads to noisy maps and shattered masks, while the register models produce clean maps that accurately isolate the object.}
+\end{figure}
+
+\subsection{Decoding Figure 14: The OpenCLIP Mystery}
+Figure 14 is the "Aha!" moment of Appendix C. It answers the question: Why didn't OpenCLIP fail completely on the LOST algorithm like DINOv2 did?
+
+Remember, the Attention mechanism uses three vectors: Queries (Q), Keys (K), and Values (V).
+
+\begin{itemize}
+    \item DINOv2 stores its spatial layout in the Keys.
+    \item OpenCLIP stores its spatial layout in the Values.
+\end{itemize}
+
+\textbf{Looking at the Top Row (Without Registers):}
+\begin{itemize}
+    \item Look at the Keys and Queries maps. Do you see the random yellow blocks floating in the dark purple background? Those are the high-norm artifacts! They do exist in OpenCLIP.
+
+    \item Now look at the Values map. The scattered yellow blocks are completely gone! The background is a clean, uniform dark purple. This visually confirms the authors' claim that for OpenCLIP, the value projection naturally filters out the high-norm outliers even without registers.
+\end{itemize}
+
+\textbf{What this proves:}
+As the authors noted in the paper, OpenCLIP absolutely generates garbage artifact tokens just like DINOv2. However, the final mathematical projection layer that creates the Values (V) naturally acts like a filter. It accidentally pushes those high-norm outliers into the "null space" (it hides them).
+
+Because the LOST algorithm uses the Values for OpenCLIP, it never sees the artifacts, which is why it scored a decent ~38\% CorLoc in Table 3 without needing any registers.
+
+Looking at the Bottom Row (With Registers):
+Once you apply your test-time registers, the Keys, Queries, and Values all become perfectly clean. The registers successfully absorbed the artifacts before they even reached the QKV projection!
+    
+
+
 \onecolumn
 \bibliography{bibliography}
 \bibliographystyle{unsrtnat}
