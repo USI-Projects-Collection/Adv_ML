@@ -135,3 +135,11 @@ _minted*/
 
 *.pdf
 src/Poli/README.md
+
+# codex files 
+AGENT.md
+PLAN.md
+
+# logsa and results folder 
+logs/
+results/
