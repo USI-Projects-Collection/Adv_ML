@@ -55,42 +55,73 @@ class AttentionFeatureExtractor:
 
     def _register_hook(self):
         if self.model_backend == "timm":
+            # timm: hook the QKV Linear directly (reads its output, no recompute)
             last_attn = self.model.blocks[-1].attn
-        elif self.model_backend == "open_clip":
-            last_attn = self.model.visual.transformer.resblocks[-1].attn
-        elif self.model_backend == "open_clip_hf":
-            last_attn = self.model.model.visual.transformer.resblocks[-1].attn
-        else:
-            raise NotImplementedError(f"Unknown backend: {self.model_backend}")
-
-        def hook(module, input, output):
-            x = input[0]           # (B, N, C)
-            B, N, C = x.shape
-
-            if self.model_backend == "timm":
+            
+            def hook(module, input, output):
+                x = input[0]
+                B, N, C = x.shape
                 num_heads = module.num_heads
                 head_dim  = C // num_heads
-                qkv = module.qkv(x)                                          # (B, N, 3C)
-                qkv = qkv.reshape(B, N, 3, num_heads, head_dim)
-                qkv = qkv.permute(2, 0, 3, 1, 4)                            # (3, B, H, N, D)
-                idx = {"queries": 0, "keys": 1, "values": 2}[self.feature_type]
-                feat = qkv[idx]                                              # (B, H, N, D)
-                feat = feat.permute(0, 2, 1, 3).reshape(B, N, C)            # (B, N, C)
-                self.features = feat
-
-            elif self.model_backend in ("open_clip", "open_clip_hf"):
-                C_in     = module.in_proj_weight.shape[1]
-                num_heads = module.num_heads
-                head_dim  = C_in // num_heads
-                qkv = F.linear(x, module.in_proj_weight, module.in_proj_bias)  # (B, N, 3C)
+                qkv = module.qkv(x)
                 qkv = qkv.reshape(B, N, 3, num_heads, head_dim)
                 qkv = qkv.permute(2, 0, 3, 1, 4)
                 idx = {"queries": 0, "keys": 1, "values": 2}[self.feature_type]
-                feat = qkv[idx]
-                feat = feat.permute(0, 2, 1, 3).reshape(B, N, C_in)
+                feat = qkv[idx].permute(0, 2, 1, 3).reshape(B, N, C)
                 self.features = feat
 
-        self.hook_handle = last_attn.register_forward_hook(hook)
+            self.hook_handle = last_attn.register_forward_hook(hook)
+
+        elif self.model_backend in ("open_clip", "open_clip_hf"):
+            # For Keys and Queries: recompute from in_proj_weight on the
+            # pre-LN input — this correctly shows the raw projection differences.
+            #
+            # For Values: DO NOT recompute from in_proj_weight.
+            # Reason: inputs[0] to MultiheadAttention is already LayerNorm-normalised
+            # (OpenCLIP uses pre-norm architecture). LayerNorm erases the norm
+            # difference between outlier and normal patches, so V = W_V @ LN(x)
+            # looks uniform across all patches — the null-space effect disappears.
+            # The paper's claim ("values suppress artifacts") refers to the
+            # ATTENDED output — softmax(QK^T/√d) · V — which is the full block
+            # output. We hook the ResidualAttentionBlock output for values only.
+
+            if self.feature_type == "values":
+                # Hook the full ResidualAttentionBlock output (post-attention + residual)
+                if self.model_backend == "open_clip":
+                    block = self.model.visual.transformer.resblocks[-1]
+                else:  # open_clip_hf
+                    block = self.model.model.visual.transformer.resblocks[-1]
+
+                def hook_values(module, input, output):
+                    # output: (B, N, C) — attended representation after residual add
+                    self.features = output
+
+                self.hook_handle = block.register_forward_hook(hook_values)
+
+            else:
+                # Keys or Queries: recompute from in_proj_weight (correct for these)
+                if self.model_backend == "open_clip":
+                    last_attn = self.model.visual.transformer.resblocks[-1].attn
+                else:
+                    last_attn = self.model.model.visual.transformer.resblocks[-1].attn
+
+                def hook_kq(module, input, output):
+                    x = input[0]
+                    B, N, _ = x.shape
+                    C_in      = module.in_proj_weight.shape[1]
+                    num_heads = module.num_heads
+                    head_dim  = C_in // num_heads
+                    qkv = F.linear(x, module.in_proj_weight, module.in_proj_bias)
+                    qkv = qkv.reshape(B, N, 3, num_heads, head_dim)
+                    qkv = qkv.permute(2, 0, 3, 1, 4)
+                    idx = {"queries": 0, "keys": 1}[self.feature_type]
+                    feat = qkv[idx].permute(0, 2, 1, 3).reshape(B, N, C_in)
+                    self.features = feat
+
+                self.hook_handle = last_attn.register_forward_hook(hook_kq)
+
+        else:
+            raise NotImplementedError(f"Unknown backend: {self.model_backend}")
 
     def extract(self, x):
         with torch.no_grad():

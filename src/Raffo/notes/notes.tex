@@ -167,7 +167,7 @@ This figure acts like an X-ray, letting you peek inside the LOST algorithm step-
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{../img/Figure_13.png}
+    \includegraphics[width=0.8\textwidth]{../img/figure_13_replication.png}
     \caption{Visualization of the LOST algorithm's intermediate steps for DeiT-III, OpenCLIP, and DINOv2, with and without registers. The first row shows the inverse degree map (LOST score), the second row shows the similarity to the seed patch, and the third row shows the final binary mask after thresholding. The presence of high-norm artifacts in the no-register models leads to noisy maps and shattered masks, while the register models produce clean maps that accurately isolate the object.}
 \end{figure}
 
@@ -196,6 +196,11 @@ Because the LOST algorithm uses the Values for OpenCLIP, it never sees the artif
 Looking at the Bottom Row (With Registers):
 Once you apply your test-time registers, the Keys, Queries, and Values all become perfectly clean. The registers successfully absorbed the artifacts before they even reached the QKV projection!
     
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../img/figure_14_replication.png}
+    \caption{Visualization of the Keys, Queries, and Values for OpenCLIP without and with test-time registers. The top row (without registers) shows that while the Keys and Queries contain high-norm artifacts (bright yellow blocks), the Values are clean, confirming that OpenCLIP's value projection filters out the artifacts. The bottom row (with test-time registers) shows that all three projections are clean, demonstrating that the test-time registers successfully absorbed the artifacts before they could affect the spatial features.}
+\end{figure}
 
 
 \onecolumn
