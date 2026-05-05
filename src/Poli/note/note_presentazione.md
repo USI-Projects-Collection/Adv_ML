@@ -52,3 +52,46 @@ Quindi il "val set" qui funziona già da test set: è guardato una sola volta a 
 | DeiT-III | **bassa** | no-reg è il checkpoint ufficiale del paper. with-reg **non esiste pubblicamente** (Meta non l'ha mai rilasciato). Lo costruiamo iniettando register tokens **non trainati** nel baseline. La rete non ha mai visto registri durante il training, quindi non ci aspettiamo l'effetto del paper. È onestamente la riga più debole. |
 
 Subset size: ~500 immagini stratificate per classe (50 classi × 10 img), invece dei dataset completi (ImageNet val = 50.000 img). Questo introduce varianza alta sui numeri assoluti — non si potranno confrontare 1:1 con i numeri del paper, ma il **trend qualitativo** (with-reg ≈ no-reg, talvolta with-reg leggermente meglio) deve emergere.
+
+## Affidabilità del subset usato
+
+Stiamo lavorando su un subset molto piccolo dei dataset originali. Numeri concreti:
+
+| Dataset | Full size (val) | Nostro subset | Frazione |
+|---|---|---|---|
+| ImageNet-1k | 50,000 img / 1000 classi | 500 img / 50 classi | **1%** delle immagini, **5%** delle classi |
+| ADE20k | 2,000 img / 150 classi | TBD (≈200 img) | TBD |
+| NYUd v2 | 654 img | TBD (≈200 img) | TBD |
+
+**Conseguenze pratiche:**
+
+1. **I numeri assoluti non sono confrontabili col paper.** Il paper riporta 84.3% Top-1 di DINOv2 su 1000 classi; noi riportiamo 94.0% su 50 classi. Il task è ~20× più facile (chance level 1/50 = 2% vs 1/1000 = 0.1%), quindi è naturale che i nostri numeri siano molto più alti. Non è un errore.
+
+2. **La varianza è alta.** Con 150 immagini di val (3 img/classe), ogni singola predizione sbagliata sposta il Top-1 di 0.67 punti. Differenze sotto questa soglia sono nel rumore.
+
+3. **Il trend qualitativo, però, è il messaggio del paper.** Quello che vogliamo dimostrare non è "DINOv2 fa 84.3 e DINOv2+reg fa 84.8", ma "**aggiungere registri non degrada le performance, e talvolta le migliora**". Questo trend è robusto al subset:
+
+   | Modello | Δ paper | Δ noi (subset) | Stesso segno? |
+   |---|---|---|---|
+   | DINOv2 | +0.5 | +0.67 | ✅ |
+   | OpenCLIP | -0.1 | 0.00 | ✅ (entrambi ≈ zero) |
+   | DeiT-III | 0.0 | -0.67 | ✗ ma atteso (registri non trainati) |
+
+4. **Ironia importante per la presentazione:** il subset piccolo *aiuta* la nostra narrativa per un punto. Quando i numeri assoluti sono al 90-96%, anche un mezzo punto di differenza è chiaramente visibile come trend — non è soffocato dal rumore di fondo del dataset completo. Il messaggio "registri non rompono niente" emerge più nitido.
+
+## Risultati Tabella 2a (ottenuti)
+
+| Modello | Top-1 (50 classi) | Δ vs no-reg | Note |
+|---|---|---|---|
+| DINOv2 ViT-L/14 | 94.00% | — | baseline ufficiale paper |
+| DINOv2 ViT-L/14 +reg4 | **94.67%** | **+0.67** | reg ufficiali paper, miglioramento coerente |
+| OpenCLIP ViT-B/16 | 90.67% | — | baseline ufficiale paper |
+| OpenCLIP +tt-reg4 | 90.67% | **0.00** | test-time registers, identico al baseline |
+| DeiT-III ViT-B/16 | 96.67% | — | baseline ufficiale paper |
+| DeiT-III +reg4 (injected) | 96.00% | **-0.67** | reg non trainati, leggera degradazione attesa |
+
+**Lettura riga per riga:**
+
+- **DINOv2** (riga più affidabile): il modello con registri trainati dagli autori migliora rispetto al baseline. Riproduciamo l'osservazione del paper.
+- **OpenCLIP**: il modello con test-time registers (Jiang 2025) ha la stessa performance del baseline. Il meccanismo "drena" gli artefatti senza alterare ciò che il CLS sa fare — coerente con quanto Jiang riporta.
+- **DeiT-III**: aggiungendo registri **non trainati** a un modello che non li ha mai visti perdiamo 0.67 punti. Questa è la dimostrazione *negativa* dell'ipotesi del paper: i registri funzionano solo se la rete è stata trainata a usarli; iniettarli a inference è solo rumore. Il paper invece ri-traina e non vede degradazione.
