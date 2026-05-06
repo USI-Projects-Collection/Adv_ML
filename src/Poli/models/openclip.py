@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel
 
-from .base import RegisteredViT
+from .base import RegisteredViT, ViTOutput
 
 _NO_REG_NAME = ("ViT-B-16", "laion2b_s34b_b88k")
 _WITH_REG_HF = "amildravid4292/clip-vitb16-test-time-registers"
@@ -83,6 +83,19 @@ class _OpenCLIPTestTimeReg(RegisteredViT):
         finally:
             h.remove()
         return captured["tokens"]
+
+    def forward(self, x: torch.Tensor) -> ViTOutput:
+        # Override base: HF test-time-registers uses layout
+        # [CLS, patch_0, ..., patch_{P-1}, REG_0, ..., REG_{R-1}]
+        # (registers appended at the end, not after CLS).
+        tokens = self._forward_tokens(x)
+        cls = tokens[:, 0]
+        patches = tokens[:, 1 : 1 + self.num_patches]
+        if self.num_registers > 0:
+            reg = tokens[:, 1 + self.num_patches :]
+        else:
+            reg = None
+        return ViTOutput(cls=cls, patches=patches, registers=reg)
 
 
 def load_openclip(
