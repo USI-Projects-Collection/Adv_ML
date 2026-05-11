@@ -206,6 +206,11 @@ Once you apply your test-time registers, the Keys, Queries, and Values all becom
 \subsubsection{Positional focus - Figure 16}
 Paper's figure 16 visualises the average spatial attention pattern of each token type in the last layer of a DINOv2 model trained with 4 register tokens (ViT-Large). The experiment produces six heatmaps — one for the CLS token, one for each of the four register tokens ($\text{reg}_0 - \text{reg}_3$), and one for a representative patch token — each showing where in the image that token tends to direct its attention when averaged across many images.
 The figure serves as visual evidence for the paper's core mechanistic claim: register tokens carry global information, just like the CLS token, and do so by attending broadly to the entire image rather than to specific local regions. This contrasts sharply with patch tokens, which attend to a small, highly localised area around their own spatial position.\\
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../img/figure_16_replication.png}
+    \caption{Comparison of average spatial attention maps for the CLS token, four register tokens, and a representative patch token in a DINOv2 model with registers. The CLS and register tokens show broad, symmetric attention patterns covering most of the image, while the patch token shows a sharp, localised attention pattern focused on its immediate neighborhood.}
+\end{figure}
 \textbf{How it was replicated:}\\
 \textbf{Model.} We use \texttt{vit\_large\_patch14\_reg4\_dinov2.lvd142m} loaded via \texttt{timm}. This model's token sequence has the layout
 \[
