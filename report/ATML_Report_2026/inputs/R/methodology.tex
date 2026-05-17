@@ -3,12 +3,188 @@ This replication was conducted as an independent re-implementation from the pape
 
 \subsubsection{Model descriptions}
 Five distinct model configurations were used across the reproduced experiments. All models are pre-trained Vision Transformers (ViT) and were loaded directly from publicly available checkpoints — no fine-tuning or weight modification was performed.
+\begin{table}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+\textbf{Model} & \textbf{Architecture} & \textbf{Params} & \textbf{Pretraining} \\
+\midrule
+\multicolumn{4}{l}{\textit{DINOv2 family}} \\
+\midrule
+DINOv2-B (ViT-B/14)\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch14_dinov2.lvd142m}} &
+  ViT, patch 14, $518{\times}518$ &
+  ${\sim}87$M &
+  DINO\,v2 on LVD-142M \\
+DINOv2-B-reg4 (ViT-B/14)\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch14_reg4_dinov2.lvd142m}} &
+  Same + 4 register tokens &
+  ${\sim}87$M &
+  DINO\,v2 on LVD-142M \\
+DINOv2-G (ViT-g/14, no reg)\tablefootnote{\url{https://huggingface.co/facebook/dinov2-giant}} &
+  ViT, patch 14, $d{=}1536$, 40 blocks &
+  ${\sim}1.1$B &
+  DINO\,v2 on LVD-142M \\
+DINOv2-G (ViT-g/14, reg4)\tablefootnote{\url{https://huggingface.co/facebook/dinov2-vitg14-reg}} &
+  Same + 4 register tokens &
+  ${\sim}1.1$B &
+  DINO\,v2 on LVD-142M \\
+DINOv2-L-reg4 (ViT-L/14)\tablefootnote{\url{https://huggingface.co/timm/vit_large_patch14_reg4_dinov2.lvd142m}} &
+  ViT, patch 14, $d{=}1024$, 24 blocks, 16 heads &
+  ${\sim}304$M &
+  DINO\,v2 on LVD-142M \\
+\midrule
+\multicolumn{4}{l}{\textit{OpenCLIP family}} \\
+\midrule
+OpenCLIP ViT-B/16\tablefootnote{\url{https://huggingface.co/laion/CLIP-ViT-B-16-laion2B-s34B-b88K}} &
+  ViT, patch 16, $224{\times}224$ &
+  ${\sim}86$M (vision) &
+  Contrastive on LAION-2B \\
+OpenCLIP ViT-B/16 (test-time reg)\tablefootnote{\url{https://huggingface.co/amildravid4292/clip-vitb16-test-time-registers}} &
+  Same; register neurons redirected into dummy token &
+  ${\sim}86$M (vision) &
+  Contrastive on LAION-2B \\
+\midrule
+\multicolumn{4}{l}{\textit{DeiT-III (proxy)}} \\
+\midrule
+DeiT-III ViT-B/16-reg4\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k}} &
+  ViT, patch 16, 4 registers, GAP head &
+  --- &
+  IN-12k $\to$ IN-1k fine-tune \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Model checkpoints used in this work.}
+\label{tab:models}
+\vspace{4pt}
+\begin{flushleft}
+$^\dagger$~Original DeiT-III+registers checkpoints were never publicly released; this \texttt{timm} model serves as the closest available proxy and is clearly labelled in all figures.
+\end{flushleft}
+\end{table}
 
 \subsubsection{Datasets}
-Describe the datasets you used and how you obtained them. For each dataset include 1) relevant statistics such as the number of examples and label distributions, 2) details of train / validation / test splits, 3) an explanation of any preprocessing done, and 4) a link to download the data (if available).
+\begin{table}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+\textbf{Dataset} & \textbf{Description} & \textbf{Statistics} & \textbf{Splits used} \\
+\midrule
+FGVC-Aircraft\tablefootnote{\url{https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/}} &
+  Fine-grained aircraft classification, 100 variant classes &
+  6{,}667 train / 3{,}333 test &
+  \texttt{trainval} / \texttt{test} \\
+Oxford-IIIT Pet\tablefootnote{\url{https://www.robots.ox.ac.uk/~vgg/data/pets/}} &
+  37 cat/dog breeds, object-centric single-subject images &
+  7{,}349 total; 500 subsampled &
+  Combined; random subsample \\
+COCO val2017\tablefootnote{\url{https://cocodataset.org/\#download}} &
+  Scene understanding, 80 categories, multiple objects per image &
+  5{,}000 val images; 500 subsampled &
+  \texttt{val2017}; random subsample \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Datasets used in this work.}
+\label{tab:datasets}
+\end{table}
+All images are resized to $518{\times}518$ and normalised with ImageNet mean/std \texttt{([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])}. No data augmentation is applied.
+Oxford-IIIT Pet was chosen because of its object-centric nature and the presence of a single dominant subject per image, which is ideal for evaluating object discovery methods.
 
 \subsubsection{Hyperparameters}
-Describe how the hyperparameter values were set and what was the source for their value (e.g. paper, code, or your guess). If there was a hyperparameter search done, be sure to include the range of hyperparameters searched over, the method used to search (e.g. manual search, random search, grid search, etc.), and the best hyperparameters found. Include the number of total experiments (e.g. hyperparameter trials). You can also include all results from that search (not just the best-found results).
+All hyperparameters were taken directly from the paper or, where not specified, from standard practice. No hyperparameter search was performed.
+\par{\vspace{4pt}}
+\textbf{LOST algorithm.(\textbf{TODO: Link the relative experiment to this hyperparameter table (Paper Section 3.3, Appendix C)})}
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Gram matrix bias b (DINOv2) &
+  0.0 &
+  Paper, $\S.3.3$ \\
+Gram matrix bias b (OpenCLIP) &
+  0.1 &
+  Paper, $\S.3.3$ \\
+Gram matrix bias b (DeiT-III) &
+  0.1 &
+  Paper, $\S.3.3$ \\
+Adjacency threshold $\tau$ &
+  0.0 &
+  Paper, $\S.3.3$ \\
+Feature type (DINOv2) &
+  Keys($K$) &
+  Paper, $\S.3.3$ \\
+Feature type (OpenCLIP, DeiT-III) &
+  Values($V$) &
+  Paper, $\S.3.3$ \\
+\bottomrule
+\end{tabular}
+\caption{Hyperparameters for LOST algorithm.}
+\label{tab:LOSTalgo}
+\end{table}
+For Figure 14 (\textbf{TODO: LINK TO CORRECT FIGURE}) specifically, we additionally used \texttt{bias=0.0} for the Values column (while keeping \texttt{bias=0.1} for Keys and Queries). This was a deliberate adjustment to prevent mean-centering from artificially lifting near-zero outlier V vectors above the threshold — necessary to make the null-space suppression effect visible.
+\par{\vspace{4pt}}
+\textbf{Outlier threshold (TODO: Link the relative experiment to this outlier threshold (Appendix D.1, D.2))}
+The paper reports a fixed threshold of 150 for identifying high-norm outlier patches in DINOv2-g. Rather than using a fixed value — which fails to generalise across model sizes due to different embedding scales — we implemented an adaptive threshold using Otsu's method applied to the pre-LayerNorm patch norm histogram, clipped at the 99th percentile to prevent the outlier tail from distorting the histogram. A sanity check ensures detected outliers comprise 1-15\% of patches; if this fails, the method falls back to $\text{median} + 10 \times \text{MAD}$ (median absolute deviation), and finally to the 95th percentile as a hard fallback. This approach is more principled than the paper's fixed value and generalises across model sizes.
+\par{\vspace{4pt}}
+\textbf{Linear probing (TODO: Link the relative experiment to this linear probing (Appendix D.2))}
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Classifier &
+  Logistic Regression (\texttt{sklearn}) &
+  Paper, $Appendix\ D.2$ \\
+Regularisation C &
+  1.0 (classification), 0.1 (position) &
+  Standard default \\
+Max iterations &
+  1000 (classification), 300 (position) &
+  Convergence heuristic \\
+Solver &
+  lbfgs &
+  Efficient for dense features \\
+Feature normalisation &
+  \texttt{StandardScaler} (zero mean, unit variance) &
+  Standard practice \\
+Reconstruction regressor &
+  Ridge Regression, $\alpha=1.0$ &
+  Standard practice \\
+\bottomrule
+\end{tabular}
+\caption{Hyperparameters for linear probing.}
+\label{tab:linearprobe}
+\end{table}
+
+\textbf{Position prediction approximation (TODO: Link the relative experiment to this position prediction (Appendix D.2, Paper Table 5))}
+The paper predicts the exact patch grid position ($37 \times 37 = 1,369 \text{classes}$). We coarsen this to a $7 \times 7 = 49\text{-class grid}$ (each super-cell covering approximately $5 \times 5$ fine patches) to make logistic regression tractable within reasonable time. We also subsample to 50,000 training patches and 20,000 test patches. These are implementation approximations whose effect is visible in the absolute accuracy numbers but not in the relative trend between models, which is the quantity the paper reports.
+\par{\vspace{4pt}}
+\textbf{Attention map averaging (TODO: Link the relative experiment to this attention map averaging (Appendix D.3))}
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
+\midrule
+\# of images averaged &
+  500 &
+  Our choice (paper: ``random subset``) \\
+Patch token used &
+  Centre patch at grid position (18,18) &
+  Our choice (all patches show the same qualitative behavior) \\
+\texttt{fused\_attn} &
+  False &
+  Required to materialise softmax matrix \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Hyperparameters for attention map averaging.}
+\label{tab:attmapavg}
+\end{table}
 
 \subsubsection{Experimental setup and code}
 Include a description of how the experiments were set up that's clear enough a reader could replicate the setup. 
