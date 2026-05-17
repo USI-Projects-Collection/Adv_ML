@@ -1,8 +1,8 @@
 \subsection{Methodology}
-Explain your approach - did you use the author's code, or did you aim to re-implement the approach from the description in the paper? Summarize the resources (code, documentation, GPUs) that you used.
+This replication was conducted as an independent re-implementation from the paper's description, without access to the original authors' codebase. All experiments were re-written from scratch in Python using publicly available model checkpoints, libraries, and datasets. The sections reproduced are Section 3.3 (object discovery), Section 3.4 (qualitative evaluation), Appendix C (analysis of LOST performance), and Appendix D (behaviour of models trained with registers). Code was run on a single NVIDIA GPU, a single/double T4 (on Kaggle), with model loading handled via the \texttt{timm} and \texttt{open\_clip} libraries and, where necessary, HuggingFace \texttt{transformers}.
 
 \subsubsection{Model descriptions}
-Include a description of each model or algorithm used. Be sure to list the type of model, the number of parameters, and other relevant info (e.g. if it's pre-trained). 
+Five distinct model configurations were used across the reproduced experiments. All models are pre-trained Vision Transformers (ViT) and were loaded directly from publicly available checkpoints — no fine-tuning or weight modification was performed.
 
 \subsubsection{Datasets}
 Describe the datasets you used and how you obtained them. For each dataset include 1) relevant statistics such as the number of examples and label distributions, 2) details of train / validation / test splits, 3) an explanation of any preprocessing done, and 4) a link to download the data (if available).
