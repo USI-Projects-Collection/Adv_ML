@@ -140,6 +140,10 @@ src/Poli/README.md
 AGENT.md
 PLAN.md
 
-# logsa and results folder 
+# logs and results folder
 logs/
 results/
+
+# but DO track Poli/results — the report TeX references these figures directly.
+!src/Poli/results/
+!src/Poli/results/**

@@ -1,0 +1,9 @@
+{
+  "DINOv2 ViT-L/14 +tt-reg4 (Jiang)": {
+    "rmse": 2.24894642829895,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 1024,
+    "time_sec": 262.05781602859497
+  }
+}

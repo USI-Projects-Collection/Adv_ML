@@ -1,0 +1,12 @@
+{
+  "OpenCLIP ViT-B/16": {
+    "top1": 0.94,
+    "n_classes": 50,
+    "time_sec": 6.7548322677612305
+  },
+  "OpenCLIP +tt-reg4": {
+    "top1": 0.9333333333333333,
+    "n_classes": 50,
+    "time_sec": 7.1199657917022705
+  }
+}

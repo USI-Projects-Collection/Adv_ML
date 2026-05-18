@@ -1,0 +1,9 @@
+{
+  "DINOv2 ViT-L/14 +tt-reg4 (Jiang)": {
+    "miou": 0.1884225220068005,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 1024,
+    "time_sec": 670.9005658626556
+  }
+}

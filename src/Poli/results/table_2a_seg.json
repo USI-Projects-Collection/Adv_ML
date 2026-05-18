@@ -1,0 +1,44 @@
+{
+  "DINOv2 ViT-L/14": {
+    "miou": 0.18697348813334902,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 1024,
+    "time_sec": 538.5591461658478
+  },
+  "DINOv2 ViT-L/14 +reg4": {
+    "miou": 0.1918930522145581,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 1024,
+    "time_sec": 539.912425994873
+  },
+  "OpenCLIP ViT-B/16": {
+    "miou": 0.12164774390270498,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 768,
+    "time_sec": 76.47448205947876
+  },
+  "OpenCLIP +tt-reg4": {
+    "miou": 0.12363998106338171,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 768,
+    "time_sec": 73.84386825561523
+  },
+  "DeiT-III ViT-B/16": {
+    "miou": 0.12885615711444817,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 768,
+    "time_sec": 67.44791388511658
+  },
+  "DeiT-III +reg4 (inj.)": {
+    "miou": 0.13273026553455558,
+    "n_train": 350,
+    "n_val": 150,
+    "feature_dim": 768,
+    "time_sec": 69.4867377281189
+  }
+}
