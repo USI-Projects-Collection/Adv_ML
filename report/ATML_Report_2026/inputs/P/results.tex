@@ -55,19 +55,19 @@ The drop of $-0.67$ points corresponds to exactly one misclassified image on our
 
 Figure~\ref{fig:f8-top-paper} shows the original Figure~8 (top) from \citet{darcet2024vision} for reference, and Figure~\ref{fig:f8-top-ours} our reproduction using the truncate/cycle proxy (no retraining): for $N<4$ we truncate the 4 trained registers of DINOv2-reg4 to the first $N$ slots; for $N>4$ we cycle the trained registers to fill the additional slots.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_paper/figure8_top_paper.png}
-\caption{Figure~8 (top) from \citet{darcet2024vision}, reproduced for reference. Each cell shows the last-layer \texttt{[CLS]}$\to$\texttt{patch} attention map of DINOv2-L/14 trained with $N$ register tokens.}
-\label{fig:f8-top-paper}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_paper/figure8_top_paper.png}
+% \caption{Figure~8 (top) from \citet{darcet2024vision}, reproduced for reference. Each cell shows the last-layer \texttt{[CLS]}$\to$\texttt{patch} attention map of DINOv2-L/14 trained with $N$ register tokens.}
+% \label{fig:f8-top-paper}
+% \end{figure}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top/figure8_top.png}
-\caption{Our Figure~8 (top), obtained by truncating/cycling the trained registers of DINOv2-reg4 at inference. Subject (dog) becomes clear by $N=4$.}
-\label{fig:f8-top-ours}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top/figure8_top.png}
+% \caption{Our Figure~8 (top), obtained by truncating/cycling the trained registers of DINOv2-reg4 at inference. Subject (dog) becomes clear by $N=4$.}
+% \label{fig:f8-top-ours}
+% \end{figure}
 
 For $N=0,1,2$ our maps still show diffuse noise on background patches: this is because for these values we are running DINOv2-reg4 with fewer registers than it was trained for, leaving the model with no place to dump high-norm artifacts -- they spread out chaotically over patches. From $N=4$ onwards the cycled registers form valid scratch space and the maps are clean. This is consistent with the paper qualitatively, although the original paper shows multiple distinct outlier patches at $N=0$ on a model nativetly trained without registers, while ours shows diffuse noise because of the truncation strategy.
 
@@ -75,19 +75,19 @@ For $N=0,1,2$ our maps still show diffuse noise on background patches: this is b
 
 Figure~\ref{fig:f8-bot-paper} shows the original Figure~8 (bottom) for reference, and Figure~\ref{fig:f8-bot-ours} our reproduction with the same truncate/cycle strategy on the same three probes used for Table~2a. Numerical values are in Table~\ref{tab:f8-bot}.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_paper.png}
-\caption{Figure~8 (bottom) from \citet{darcet2024vision}, reproduced for reference. Each panel plots a downstream metric as a function of the number of register tokens used during pretraining.}
-\label{fig:f8-bot-paper}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_paper.png}
+% \caption{Figure~8 (bottom) from \citet{darcet2024vision}, reproduced for reference. Each panel plots a downstream metric as a function of the number of register tokens used during pretraining.}
+% \label{fig:f8-bot-paper}
+% \end{figure}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom.png}
-\caption{Our Figure~8 (bottom): linear probe Top-1 on ImageNet, linear segmentation mIoU on ADE20k, linear depth RMSE on NYUd, as a function of the number of (truncated/cycled) register tokens on DINOv2-reg4.}
-\label{fig:f8-bot-ours}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom.png}
+% \caption{Our Figure~8 (bottom): linear probe Top-1 on ImageNet, linear segmentation mIoU on ADE20k, linear depth RMSE on NYUd, as a function of the number of (truncated/cycled) register tokens on DINOv2-reg4.}
+% \label{fig:f8-bot-ours}
+% \end{figure}
 
 \begin{table}[h]
 \centering
@@ -132,19 +132,19 @@ DINOv2 ViT-L/14 +tt-reg4 (Jiang) & \textbf{95.33\%} & 18.84\% & 2.249 m \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg/figure8_top_ttreg.png}
-\caption{Figure~8 (top) with test-time registers (\citet{jiang2025vision} re-implementation). $N=0$ is the unmodified DINOv2 baseline with its single dominant outlier; the maps clean up immediately from $N=1$ onwards.}
-\label{fig:f8-top-jiang}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg/figure8_top_ttreg.png}
+% \caption{Figure~8 (top) with test-time registers (\citet{jiang2025vision} re-implementation). $N=0$ is the unmodified DINOv2 baseline with its single dominant outlier; the maps clean up immediately from $N=1$ onwards.}
+% \label{fig:f8-top-jiang}
+% \end{figure}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg.png}
-\caption{Figure~8 (bottom) with test-time registers. Top-1 jumps to $95.33\%$ immediately at $N=1$ and plateaus; performance collapses sharply at $N=16$.}
-\label{fig:f8-bot-jiang}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg.png}
+% \caption{Figure~8 (bottom) with test-time registers. Top-1 jumps to $95.33\%$ immediately at $N=1$ and plateaus; performance collapses sharply at $N=16$.}
+% \label{fig:f8-bot-jiang}
+% \end{figure}
 
 \begin{table}[h]
 \centering
@@ -170,19 +170,19 @@ Two observations stand out. First, the qualitative behaviour at $N=1$ already ma
 
 Inspecting Jiang's reference code (\texttt{shared/hook\_fn.py}, function \texttt{activate\_on\_registers}) we noticed that for each register neuron the top-1 outlier value is duplicated identically across all $N$ test-time registers. We hypothesised that the collapse at $N=16$ above might be caused by this duplication: the CLS token sees 16 near-identical broadcast nodes and dilutes its global-readout attention across them. To test this we introduced a variant in which, for each register neuron, the top-$N$ outlier patches are picked and their signed values are written onto the $N$ different test-time registers (so TT\_REG\_0 receives the top-1, TT\_REG\_1 the top-2, and so on). The remainder of the intervention -- zeroing every patch position on those neurons -- is identical to Jiang's. Numerical results are in Table~\ref{tab:f8-jiang-indep}; qualitative maps in Figure~\ref{fig:f8-top-jiang-indep}; the bottom panel in Figure~\ref{fig:f8-bot-jiang-indep}.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg_indep/figure8_top_ttreg_indep.png}
-\caption{Figure~8 (top) with the independent test-time register variant. Maps clean up from $N=1$; a small residual hotspot reappears at $N=8,16$.}
-\label{fig:f8-top-jiang-indep}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg_indep/figure8_top_ttreg_indep.png}
+% \caption{Figure~8 (top) with the independent test-time register variant. Maps clean up from $N=1$; a small residual hotspot reappears at $N=8,16$.}
+% \label{fig:f8-top-jiang-indep}
+% \end{figure}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg_indep.png}
-\caption{Figure~8 (bottom) with the independent test-time register variant. The collapse at $N=16$ persists despite TT registers now carrying $N$ distinct broadcast nodes.}
-\label{fig:f8-bot-jiang-indep}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg_indep.png}
+% \caption{Figure~8 (bottom) with the independent test-time register variant. The collapse at $N=16$ persists despite TT registers now carrying $N$ distinct broadcast nodes.}
+% \label{fig:f8-bot-jiang-indep}
+% \end{figure}
 
 \begin{table}[h]
 \centering

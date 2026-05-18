@@ -4,7 +4,9 @@ This replication was conducted as an independent re-implementation from the pape
 \subsubsection{Model descriptions}
 Five distinct model configurations were used across the reproduced experiments. All models are pre-trained Vision Transformers (ViT) and were loaded directly from publicly available checkpoints — no fine-tuning or weight modification was performed.
 \begin{table}[ht]
-\centering
+\caption{Model checkpoints used in this work.}
+\label{tab:models}
+\begin{center}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llll}
 \toprule
@@ -53,8 +55,7 @@ DeiT-III ViT-B/16-reg4\tablefootnote{\url{https://huggingface.co/timm/vit_base_p
 \bottomrule
 \end{tabular}%
 }
-\caption{Model checkpoints used in this work.}
-\label{tab:models}
+\end{center}
 \vspace{4pt}
 \begin{flushleft}
 $^\dagger$~Original DeiT-III+registers checkpoints were never publicly released; this \texttt{timm} model serves as the closest available proxy and is clearly labelled in all figures.
@@ -63,7 +64,9 @@ $^\dagger$~Original DeiT-III+registers checkpoints were never publicly released;
 
 \subsubsection{Datasets}
 \begin{table}[ht]
-\centering
+\caption{Datasets used in this work.}
+\label{tab:datasets}
+\begin{center}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lllll}
 \toprule
@@ -84,8 +87,7 @@ COCO val2017\tablefootnote{\url{https://cocodataset.org/\#download}} &
 \bottomrule
 \end{tabular}%
 }
-\caption{Datasets used in this work.}
-\label{tab:datasets}
+\end{center}
 \end{table}
 All images are resized to $518{\times}518$ and normalised with ImageNet mean/std \texttt{([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])}. No data augmentation is applied.
 Oxford-IIIT Pet was chosen because of its object-centric nature and the presence of a single dominant subject per image, which is ideal for evaluating object discovery methods.
@@ -95,7 +97,9 @@ All hyperparameters were taken directly from the paper or, where not specified, 
 \par{\vspace{4pt}}
 \textbf{LOST algorithm.(\textbf{TODO: Link the relative experiment to this hyperparameter table (Paper Section 3.3, Appendix C)})}
 \begin{table}[H]
-\centering
+\caption{Hyperparameters for LOST algorithm.}
+\label{tab:LOSTalgo}
+\begin{center}
 \begin{tabular}{lll}
 \toprule
 \textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
@@ -120,8 +124,7 @@ Feature type (OpenCLIP, DeiT-III) &
   Paper, $\S.3.3$ \\
 \bottomrule
 \end{tabular}
-\caption{Hyperparameters for LOST algorithm.}
-\label{tab:LOSTalgo}
+\end{center}
 \end{table}
 For Figure 14 (\textbf{TODO: LINK TO CORRECT FIGURE}) specifically, we additionally used \texttt{bias=0.0} for the Values column (while keeping \texttt{bias=0.1} for Keys and Queries). This was a deliberate adjustment to prevent mean-centering from artificially lifting near-zero outlier V vectors above the threshold — necessary to make the null-space suppression effect visible.
 \par{\vspace{4pt}}
@@ -130,7 +133,9 @@ The paper reports a fixed threshold of 150 for identifying high-norm outlier pat
 \par{\vspace{4pt}}
 \textbf{Linear probing (TODO: Link the relative experiment to this linear probing (Appendix D.2))}
 \begin{table}[H]
-\centering
+\caption{Hyperparameters for linear probing.}
+\label{tab:linearprobe}
+\begin{center}
 \begin{tabular}{lll}
 \toprule
 \textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
@@ -155,8 +160,7 @@ Reconstruction regressor &
   Standard practice \\
 \bottomrule
 \end{tabular}
-\caption{Hyperparameters for linear probing.}
-\label{tab:linearprobe}
+\end{center}
 \end{table}
 
 \textbf{Position prediction approximation (TODO: Link the relative experiment to this position prediction (Appendix D.2, Paper Table 5))}
@@ -164,7 +168,9 @@ The paper predicts the exact patch grid position ($37 \times 37 = 1,369 \text{cl
 \par{\vspace{4pt}}
 \textbf{Attention map averaging (TODO: Link the relative experiment to this attention map averaging (Appendix D.3))}
 \begin{table}[H]
-\centering
+\caption{Hyperparameters for attention map averaging.}
+\label{tab:attmapavg}
+\begin{center}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lll}
 \toprule
@@ -182,8 +188,7 @@ Patch token used &
 \bottomrule
 \end{tabular}%
 }
-\caption{Hyperparameters for attention map averaging.}
-\label{tab:attmapavg}
+\end{center}
 \end{table}
 
 \subsubsection{Experimental setup and code}
