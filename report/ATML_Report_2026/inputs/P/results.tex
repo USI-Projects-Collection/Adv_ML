@@ -57,14 +57,14 @@ Figure~\ref{fig:f8-top-paper} shows the original Figure~8 (top) from \citet{darc
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_top_paper.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_paper/figure8_top_paper.png}
 \caption{Figure~8 (top) from \citet{darcet2024vision}, reproduced for reference. Each cell shows the last-layer \texttt{[CLS]}$\to$\texttt{patch} attention map of DINOv2-L/14 trained with $N$ register tokens.}
 \label{fig:f8-top-paper}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_top.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top/figure8_top.png}
 \caption{Our Figure~8 (top), obtained by truncating/cycling the trained registers of DINOv2-reg4 at inference. Subject (dog) becomes clear by $N=4$.}
 \label{fig:f8-top-ours}
 \end{figure}
@@ -77,14 +77,14 @@ Figure~\ref{fig:f8-bot-paper} shows the original Figure~8 (bottom) for reference
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_bottom_paper.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_paper.png}
 \caption{Figure~8 (bottom) from \citet{darcet2024vision}, reproduced for reference. Each panel plots a downstream metric as a function of the number of register tokens used during pretraining.}
 \label{fig:f8-bot-paper}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_bottom.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom.png}
 \caption{Our Figure~8 (bottom): linear probe Top-1 on ImageNet, linear segmentation mIoU on ADE20k, linear depth RMSE on NYUd, as a function of the number of (truncated/cycled) register tokens on DINOv2-reg4.}
 \label{fig:f8-bot-ours}
 \end{figure}
@@ -134,14 +134,14 @@ DINOv2 ViT-L/14 +tt-reg4 (Jiang) & \textbf{95.33\%} & 18.84\% & 2.249 m \\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_top_ttreg.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg/figure8_top_ttreg.png}
 \caption{Figure~8 (top) with test-time registers (\citet{jiang2025vision} re-implementation). $N=0$ is the unmodified DINOv2 baseline with its single dominant outlier; the maps clean up immediately from $N=1$ onwards.}
 \label{fig:f8-top-jiang}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_bottom_ttreg.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg.png}
 \caption{Figure~8 (bottom) with test-time registers. Top-1 jumps to $95.33\%$ immediately at $N=1$ and plateaus; performance collapses sharply at $N=16$.}
 \label{fig:f8-bot-jiang}
 \end{figure}
@@ -172,14 +172,14 @@ Inspecting Jiang's reference code (\texttt{shared/hook\_fn.py}, function \texttt
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_top_ttreg_indep.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_top_ttreg_indep/figure8_top_ttreg_indep.png}
 \caption{Figure~8 (top) with the independent test-time register variant. Maps clean up from $N=1$; a small residual hotspot reappears at $N=8,16$.}
 \label{fig:f8-top-jiang-indep}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{figures/P/figure8_bottom_ttreg_indep.png}
+\includegraphics[width=0.95\linewidth]{../../src/Poli/results/figure8_bottom_ttreg_indep.png}
 \caption{Figure~8 (bottom) with the independent test-time register variant. The collapse at $N=16$ persists despite TT registers now carrying $N$ distinct broadcast nodes.}
 \label{fig:f8-bot-jiang-indep}
 \end{figure}
