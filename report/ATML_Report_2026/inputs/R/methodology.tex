@@ -192,9 +192,8 @@ Patch token used &
 \end{table}
 
 \subsubsection{Experimental setup and code}
-Include a description of how the experiments were set up that's clear enough a reader could replicate the setup. 
-Include a description of the specific measure used to evaluate the experiments (e.g. accuracy, precision@K, BLEU score, etc.). 
-Provide a link to your code or notebook (if available). Add in this section (or in the following) any reference to cloud-based providers you 
+All experiments use PyTorch forward hooks to intercept intermediate model activations without modifying the underlying model architecture. This was the central technical pattern throughout the replication.
+
 
 \subsubsection{Computational requirements}
 Include a description of the hardware used, such as the GPU or CPU the experiments were run on. 
