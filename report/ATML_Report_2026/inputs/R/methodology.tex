@@ -14,44 +14,48 @@ Five distinct model configurations were used across the reproduced experiments. 
 \midrule
 \multicolumn{4}{l}{\textit{DINOv2 family}} \\
 \midrule
-DINOv2-B (ViT-B/14)\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch14_dinov2.lvd142m}} &
+\href{https://huggingface.co/timm/vit_base_patch14_dinov2.lvd142m}{DINOv2-B (ViT-B/14)} &
   ViT, patch 14, $518{\times}518$ &
   ${\sim}87$M &
   DINO\,v2 on LVD-142M \\
-DINOv2-B-reg4 (ViT-B/14)\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch14_reg4_dinov2.lvd142m}} &
+\href{https://huggingface.co/timm/vit_base_patch14_reg4_dinov2.lvd142m}{DINOv2-B-reg4 (ViT-B/14)}&
   Same + 4 register tokens &
   ${\sim}87$M &
   DINO\,v2 on LVD-142M \\
-DINOv2-G (ViT-g/14, no reg)\tablefootnote{\url{https://huggingface.co/facebook/dinov2-giant}} &
+\href{https://huggingface.co/facebook/dinov2-giant}{DINOv2-G (ViT-g/14, no reg)} &
   ViT, patch 14, $d{=}1536$, 40 blocks &
   ${\sim}1.1$B &
   DINO\,v2 on LVD-142M \\
-DINOv2-G (ViT-g/14, reg4)\tablefootnote{\url{https://huggingface.co/facebook/dinov2-vitg14-reg}} &
+\href{https://huggingface.co/facebook/dinov2-vitg14-reg}{DINOv2-G (ViT-g/14, reg4)} &
   Same + 4 register tokens &
   ${\sim}1.1$B &
   DINO\,v2 on LVD-142M \\
-DINOv2-L-reg4 (ViT-L/14)\tablefootnote{\url{https://huggingface.co/timm/vit_large_patch14_reg4_dinov2.lvd142m}} &
+\href{https://huggingface.co/timm/vit_large_patch14_reg4_dinov2.lvd142m}{DINOv2-L-reg4 (ViT-L/14)}&
   ViT, patch 14, $d{=}1024$, 24 blocks, 16 heads &
   ${\sim}304$M &
   DINO\,v2 on LVD-142M \\
 \midrule
 \multicolumn{4}{l}{\textit{OpenCLIP family}} \\
 \midrule
-OpenCLIP ViT-B/16\tablefootnote{\url{https://huggingface.co/laion/CLIP-ViT-B-16-laion2B-s34B-b88K}} &
+\href{https://huggingface.co/laion/CLIP-ViT-B-16-laion2B-s34B-b88K}{OpenCLIP ViT-B/16} &
   ViT, patch 16, $224{\times}224$ &
   ${\sim}86$M (vision) &
   Contrastive on LAION-2B \\
-OpenCLIP ViT-B/16 (test-time reg)\tablefootnote{\url{https://huggingface.co/amildravid4292/clip-vitb16-test-time-registers}} &
+\href{https://huggingface.co/amildravid4292/clip-vitb16-test-time-registers}{OpenCLIP ViT-B/16 (test-time reg)} &
   Same; register neurons redirected into dummy token &
   ${\sim}86$M (vision) &
   Contrastive on LAION-2B \\
 \midrule
-\multicolumn{4}{l}{\textit{DeiT-III (proxy)}} \\
+\multicolumn{4}{l}{\textit{DeiT-III family}} \\
 \midrule
-DeiT-III ViT-B/16-reg4\tablefootnote{\url{https://huggingface.co/timm/vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k}} &
+\href{https://huggingface.co/timm/deit3_base_patch16_224.fb_in22k_ft_in1k}{DeiT-III ViT-B/16} &
+  ViT, patch 16, $224{\times}224$ &
+  ${\sim}87$M &
+  ImageNet-22K $\to$ ImageNet-1K fine-tune \\
+\href{https://huggingface.co/timm/vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k}{DeiT-III ViT-B/16-reg4 (proxy)} &
   ViT, patch 16, 4 registers, GAP head &
   --- &
-  IN-12k $\to$ IN-1k fine-tune \\
+  ImageNet-12k $\to$ ImageNet-1K fine-tune \\
 \bottomrule
 \end{tabular}%
 }
@@ -72,25 +76,32 @@ $^\dagger$~Original DeiT-III+registers checkpoints were never publicly released;
 \toprule
 \textbf{Dataset} & \textbf{Description} & \textbf{Statistics} & \textbf{Splits used} \\
 \midrule
-FGVC-Aircraft\tablefootnote{\url{https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/}} &
+\href{https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/}{FGVC-Aircraft} &
   Fine-grained aircraft classification, 100 variant classes &
   6{,}667 train / 3{,}333 test &
   \texttt{trainval} / \texttt{test} \\
-Oxford-IIIT Pet\tablefootnote{\url{https://www.robots.ox.ac.uk/~vgg/data/pets/}} &
+\href{https://www.robots.ox.ac.uk/~vgg/data/pets/}{Oxford-IIIT Pet} &
   37 cat/dog breeds, object-centric single-subject images &
   7{,}349 total; 500 subsampled &
   Combined; random subsample \\
-COCO val2017\tablefootnote{\url{https://cocodataset.org/\#download}} &
+\href{https://cocodataset.org/\#download}{COCO val2017} &
   Scene understanding, 80 categories, multiple objects per image &
   5{,}000 val images; 500 subsampled &
   \texttt{val2017}; random subsample \\
+\href{http://host.robots.ox.ac.uk/pascal/VOC/voc2007/}{PASCAL VOC 2007} &
+  Object detection, 20 categories, multiple objects per image &
+  5{,}011 trainval images; 500 subsampled &
+  \texttt{trainval}; random subsample \\
+\href{http://host.robots.ox.ac.uk/pascal/VOC/voc2012/}{PASCAL VOC 2012} &
+  Object detection, 20 categories, multiple objects per image &
+  11{,}540 trainval images; 500 subsampled &
+  \texttt{trainval}; random subsample \\
 \bottomrule
 \end{tabular}%
 }
 \end{center}
 \end{table}
-All images are resized to $518{\times}518$ and normalised with ImageNet mean/std \texttt{([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])}. No data augmentation is applied.
-Oxford-IIIT Pet was chosen because of its object-centric nature and the presence of a single dominant subject per image, which is ideal for evaluating object discovery methods.
+All images are resized to $518{\times}518$ and normalised with ImageNet mean/std \texttt{([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])} and no data augmentation is applied.
 
 \subsubsection{Hyperparameters}
 All hyperparameters were taken directly from the paper or, where not specified, from standard practice. No hyperparameter search was performed.
@@ -122,14 +133,25 @@ Feature type (DINOv2) &
 Feature type (OpenCLIP, DeiT-III) &
   Values($V$) &
   Paper, $\S.3.3$ \\
+Per-row mean-centering of Gram matrix &
+  &
+  Implementation necessity (see note) \\
+Batch size (Table 3 evaluation) &
+  32 &
+  Implementation choice \\
+Workers (Table 3 dataloader) &
+  4 &
+  Implementation choice \\
 \bottomrule
 \end{tabular}
 \end{center}
 \end{table}
+\textbf{Note on per-row mean-centering.} Without centering, DINOv2 keys produce an all-positive Gram matrix, which causes all patch degrees to be equal and seed selection to collapse to a fixed corner patch. We subtract the per-row mean from G after bias addition to prevent this. The downside is that centering also removes genuine similarity variation, which is the main reason our absolute CorLoc numbers are systematically 15-20\% points below the paper's.
+
 For Figure 14 (\textbf{TODO: LINK TO CORRECT FIGURE}) specifically, we additionally used \texttt{bias=0.0} for the Values column (while keeping \texttt{bias=0.1} for Keys and Queries). This was a deliberate adjustment to prevent mean-centering from artificially lifting near-zero outlier V vectors above the threshold — necessary to make the null-space suppression effect visible.
 \par{\vspace{4pt}}
 \textbf{Outlier threshold (TODO: Link the relative experiment to this outlier threshold (Appendix D.1, D.2))}
-The paper reports a fixed threshold of 150 for identifying high-norm outlier patches in DINOv2-g. Rather than using a fixed value — which fails to generalise across model sizes due to different embedding scales — we implemented an adaptive threshold using Otsu's method applied to the pre-LayerNorm patch norm histogram, clipped at the 99th percentile to prevent the outlier tail from distorting the histogram. A sanity check ensures detected outliers comprise 1-15\% of patches; if this fails, the method falls back to $\text{median} + 10 \times \text{MAD}$ (median absolute deviation), and finally to the 95th percentile as a hard fallback. This approach is more principled than the paper's fixed value and generalises across model sizes.
+The paper uses a fixed threshold of 150 to identify high-norm outlier patches in DINOv2-g. Since this value does not generalise across model sizes, we used Otsu's method on the pre-LayerNorm norm histogram instead, with fallbacks to median + 10×MAD and the 95th percentile if the detected outlier fraction falls outside a 1-15\% sanity range.
 \par{\vspace{4pt}}
 \textbf{Linear probing (TODO: Link the relative experiment to this linear probing (Appendix D.2))}
 \begin{table}[H]
@@ -164,7 +186,7 @@ Reconstruction regressor &
 \end{table}
 
 \textbf{Position prediction approximation (TODO: Link the relative experiment to this position prediction (Appendix D.2, Paper Table 5))}
-The paper predicts the exact patch grid position ($37 \times 37 = 1,369 \text{classes}$). We coarsen this to a $7 \times 7 = 49\text{-class grid}$ (each super-cell covering approximately $5 \times 5$ fine patches) to make logistic regression tractable within reasonable time. We also subsample to 50,000 training patches and 20,000 test patches. These are implementation approximations whose effect is visible in the absolute accuracy numbers but not in the relative trend between models, which is the quantity the paper reports.
+The paper's position task asks a classifier to predict which of 1,369 grid cells ($37 \times 37$) a patch came from. Training logistic regression at this resolution is slow, so we coarsened the grid to $7 \times 7$ (49 classes, each covering $\approx 5 \times 5$ original patches) and subsampled to 50k training and 20k test patches. This makes our absolute accuracy numbers lower than the paper's, but the relative gap between models — which is what the paper reports — is unaffected.
 \par{\vspace{4pt}}
 \textbf{Attention map averaging (TODO: Link the relative experiment to this attention map averaging (Appendix D.3))}
 \begin{table}[H]
@@ -194,9 +216,31 @@ Patch token used &
 \subsubsection{Experimental setup and code}
 All experiments use PyTorch forward hooks to intercept intermediate model activations without modifying the underlying model architecture. This was the central technical pattern throughout the replication.
 
+\textbf{Section 3.3 — LOST quantitative evaluation (Table 3)}
+All six model configurations (DeiT-III, DeiT-III+reg proxy, OpenCLIP, OpenCLIP+reg proxy, DINOv2-L, DINOv2-L+reg) were evaluated on VOC 2007 trainval, VOC 2012 trainval, and COCO val2017 (4,952 images). For each image, features are extracted via a forward hook on the last attention block, special tokens are stripped, and the LOST pipeline (L2 normalisation $\rightarrow$ Gram matrix with per-row centering $\rightarrow$ seed selection $\rightarrow$ seed expansion) produces a bounding box. CorLoc is computed as the percentage of images where the predicted box achieves $IoU \geq 0.5$ with at least one ground-truth box. Inference runs in FP16 on GPU in batches of 32; LOST itself runs per-image on CPU in float32.
+
+\textbf{Section 3.3 and Appendix C — LOST pipeline}
+A hook is registered on the last attention block (\texttt{model.blocks[-1].attn} for timm models, \texttt{model.visual.transformer.resblocks[-1].attn} for OpenCLIP). The hook intercepts the input tensor x to the attention module, recomputes the QKV projection using the stored weights, and extracts the relevant feature type (K or V). Special tokens (CLS, registers) are then removed by index slicing, and the remaining patch features are passed through the LOST algorithm: L2 normalisation $\rightarrow$ Gram matrix $\rightarrow$ binarisation at $ \tau=0 \rightarrow$ degree computation $\rightarrow$ seed selection $\rightarrow$ seed expansion. For Figure 13, all three intermediate maps (inverse degree, dot product with seed, seed expansion) are retained and plotted.
+
+\textbf{Appendix D.1 — Norm distributions (Figure 15)}
+A hook is registered on \texttt{model.norm} (the final LayerNorm), capturing its input rather than its output. This is necessary because the post-LayerNorm activations have their norms homogenised by the learned scale/shift parameters, destroying the bimodal outlier signal. The pre-LayerNorm residual stream preserves the raw norm differences between normal patches (norms $\approx 5-30$) and outlier patches (norms $\approx100-300+$) that constitute the paper's central claim. Token norms are split by type (CLS, registers, patches) and plotted as jittered strip plots over 500 images.
+
+\textbf{Appendix D.2 — Linear probing (Tables 4 and 5)}
+Features are extracted using a forward hook on the last encoder block (pre-LayerNorm, via \texttt{model.encoder.layer[-1]} for HuggingFace DINOv2). This same pre-LayerNorm trick is used to compute patch norms for outlier detection. The post-LayerNorm \texttt{last\_hidden\_state} is used as the actual feature vector for linear probing. Three probes are trained: (1) image classification using a single token as the global representation, (2) patch position prediction using a coarsened $7 \times 7$ grid, and (3) patch pixel reconstruction using Ridge regression from embedding to raw pixel values. All features are standardised before training.
+
+\textbf{Appendix D.3 — Positional focus (Figure 16)}
+\texttt{fused\_attn} is set to \texttt{False} on all transformer blocks of the timm model to force explicit materialisation of the softmax attention matrix (PyTorch's default fused kernel never creates this matrix as a Python tensor). A hook on \texttt{model.blocks[-1].attn.attn\_drop} captures the (\texttt{B}, \texttt{H}, \texttt{N\_total}, \texttt{N\_total}) softmax weight matrix. For each image, this is averaged across the 16 attention heads, and the rows corresponding to CLS, each register, and the centre patch token are extracted and accumulated. The final maps are normalised by the number of images and reshaped to $37 \times 37$ spatial grids.
+
+\textbf{Evaluation metrics}
+\begin{itemize}
+  \item LOST / object discovery (Table 3): CorLoc — percentage of images where IoU(predicted box, best ground-truth box) $\geq$ 0.5, computed on VOC 2007 trainval (5,011 images), VOC 2012 trainval (11,540 images), and COCO val2017 (4,952 annotated images)
+  \item Qualitative LOST maps: visual assessment of seed selection and expansion maps (Appendix C, Figures 13 and 14)
+  \item Linear probing, global information (Table 4): top-1 classification accuracy on FGVC-Aircraft test set
+  \item Linear probing, local information (Table 5): top-1 accuracy for position prediction (49 classes); mean L2 error for pixel reconstruction
+  \item Norm distributions: visual comparison of strip plots
+\end{itemize}
 
 \subsubsection{Computational requirements}
-Include a description of the hardware used, such as the GPU or CPU the experiments were run on. 
-For each model, include a measure of the average runtime (e.g. average time to predict labels for a given validation set with a particular batch size).
-For each experiment, include the total computational requirements (e.g. the total GPU hours spent).\\
-\textbf{Note:} You'll likely have to record this as you run your experiments, so it's better to think about it ahead of time.
+\textbf{Hardware:} All experiments were run between a single NVIDIA GPU (31.74 GiB VRAM), and a single/double T4 (15.5 GiB VRAM each) on Kaggle. CPU computations were performed on a MacBook Pro with Apple Silicon M3 Pro.
+\textbf{Total GPU time per experiment:}
+\textbf{TODO: Insert the tables}
