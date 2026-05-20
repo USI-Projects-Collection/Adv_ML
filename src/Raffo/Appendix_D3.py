@@ -83,7 +83,7 @@ SAVE_PATH   = "figure_16_replication.png"
 # Fallback image directories if Pets download fails
 FALLBACK_DIRS = [
     "./coco/images/val2017",
-    "./src/Raffo/data/coco/images/val2017",
+    "./src/Raffo/datxa/coco/images/val2017",
     "./data/fgvc-aircraft-2013b/data/images",
 ]
 # ─────────────────────────────────────────────────────────────────────────────

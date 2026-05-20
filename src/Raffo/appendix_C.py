@@ -449,16 +449,26 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             ax = fig.add_subplot(gs[row_i + 1, col])
             ax.imshow(maps[row_i], cmap=cmap, interpolation="nearest")
             ax.axis("off")
-            if col == 0:
-                ax.set_ylabel(row_label, fontsize=9, rotation=0,
-                              labelpad=55, va="center")
 
-    fig.suptitle(
-        "Figure 13 – LOST Intermediate Computations (Appendix C)\n"
-        "Adding registers improves all LOST stages for DeiT-III and DINOv2.\n"
-        "The difference is less striking for OpenCLIP (values filter outliers).",
-        fontsize=10, y=0.97
-    )
+    # --- Row labels via fig.text (works even when axes are off) ---
+    # Compute the vertical centre of each data row in figure coordinates.
+    # gs starts at bottom=0.02, top=0.92, with n_rows+1 equal rows.
+    total_height = 0.92 - 0.02          # 0.90
+    row_height   = total_height / (n_rows + 1)
+
+    for row_i, row_label in enumerate(row_labels):
+        # row 0 is the image strip; data rows start at row_i+1
+        row_bottom = 0.02 + (n_rows - row_i) * row_height   # rows are top-to-bottom
+        y_centre   = row_bottom + row_height / 2
+        fig.text(
+            0.09, y_centre,          
+            row_label,
+            fontsize=9,
+            fontweight="bold",       
+            ha="center", va="center",
+            rotation=90,             # 90° = rotated left (bottom→top reading)
+            multialignment="center",
+        )
 
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     print(f"\n[Figure 13] Saved → {save_path}")

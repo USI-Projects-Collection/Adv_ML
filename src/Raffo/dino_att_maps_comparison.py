@@ -109,6 +109,7 @@ def run_attention_experiment():
         axes[i+1].axis('off')
 
     plt.tight_layout()
+    plt.savefig("src/Raffo/img/dino_attention_maps_comparison.png")
     plt.show()
 
 if __name__ == "__main__":

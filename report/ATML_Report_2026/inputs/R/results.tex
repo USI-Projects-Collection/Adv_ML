@@ -1,14 +1,27 @@
 \subsection{Results}
-\label{sec:results}
-Start with a high-level overview of your results. Do your results support the main claims of the original paper? Keep this section as factual and precise as possible, and reserve your judgment and discussion points for the next "Discussion" section. 
-
-
+Our results broadly support the paper's central claim: adding register tokens to Vision Transformers consistently improves unsupervised object discovery performance, reduces high-norm outlier tokens, and produces cleaner attention patterns. The register improvement holds across all three model families (DINOv2, OpenCLIP, DeiT-III), all three evaluation datasets, and all qualitative experiments. However, absolute CorLoc numbers are systematically 15-20\% points below the paper's.
 \subsubsection{Results reproducing original paper}
-For each experiment, say 1) which claim in Section~\ref{sec:claims} it supports, and 2) if it successfully reproduced the associated experiment in the original paper. 
-For example, an experiment training and evaluating a model on a dataset may support a claim that that model outperforms some baseline.
-Logically group related results into subsubsections. 
-
-\subsubsubsection{Result 1}
+\subsubsubsection{Object discovery - LOST quantitative evaluation}
+\begin{table}[H]
+\caption{CorLoc (\%) of LOST object discovery on VOC07, VOC12, and COCO datasets.}
+\label{tab:object_discovery}
+\begin{center}
+\resizebox{35em}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{VOC07 ours/paper} & \textbf{VOC12 ours/paper} & \textbf{COCO ours/paper}\\
+\midrule
+Deit-III & 19.8 / 11.7 & 21.1 / 13.1 & 20.2 / 10.7 \\
+Deit-III+reg (proxy) & 21.3 / 27.1 & 22.9 / 32.7 & 23.9 / 25.1 \\
+OpenCLIP & 14.2 / 38.8 & 13.1 / 44.3 & 15.3 / 31.0 \\
+OpenCLIP+reg (test time proxy) & 30.5 / 37.1 & 35.6 / 42.0 & 23.3 / 27.9 \\
+DINOv2 & 18.5 / 55.4 & 20.7 / 40.2 & 32.9 / 26.9 \\
+DINOv2+reg & 38.4 / 55.4 & 41.6 / 60.0 & 32.9 / 42.0 \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+\end{table}
 \subsubsubsection{Result 2}
 
 \subsubsection{Results beyond original paper}
