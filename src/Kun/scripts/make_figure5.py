@@ -20,7 +20,11 @@ import torch.nn.functional as F
 from PIL import Image
 
 from make_figure2 import DEFAULT_DATA_DIR, DEFAULT_RESULTS_DIR, load_default_images, load_local_images, resolve_device
-from make_figure3 import CPU_FALLBACK_PERCENTILE, FIGURE2_IMAGE_COUNT, PAPER_NORM_CUTOFF, split_patch_tokens
+from make_figure3 import FIGURE2_IMAGE_COUNT, PAPER_NORM_CUTOFF, split_patch_tokens
+
+
+DEFAULT_CUTOFF_PERCENTILE = 99.0
+EARLY_STOPPING_PATIENCE = 3
 
 
 @dataclass(frozen=True)
@@ -110,18 +114,32 @@ def load_images(args: argparse.Namespace) -> tuple[list, str]:
     return images[args.image_offset : needed], source
 
 
-def choose_cutoff(all_norms: np.ndarray, mode: str, cutoff_mode: str) -> tuple[float, str]:
+def percentile_arg(value: str) -> float:
+    """Parse a percentile cutoff and reject values outside (0, 100)."""
+
+    percentile = float(value)
+    if not 0.0 < percentile < 100.0:
+        raise argparse.ArgumentTypeError("cutoff percentile must be between 0 and 100.")
+    return percentile
+
+
+def choose_cutoff(
+    all_norms: np.ndarray,
+    mode: str,
+    cutoff_mode: str,
+    cutoff_percentile: float,
+) -> tuple[float, str]:
     """Choose the norm cutoff used to define outlier tokens."""
 
     if cutoff_mode == "paper":
         return PAPER_NORM_CUTOFF, "paper"
     if cutoff_mode == "percentile":
-        return float(np.percentile(all_norms, CPU_FALLBACK_PERCENTILE)), f"p{CPU_FALLBACK_PERCENTILE:.0f}"
+        return float(np.percentile(all_norms, cutoff_percentile)), f"p{cutoff_percentile:g}"
 
     paper_count = int((all_norms > PAPER_NORM_CUTOFF).sum())
     if mode == "exact" or paper_count > 0:
         return PAPER_NORM_CUTOFF, "paper"
-    return float(np.percentile(all_norms, CPU_FALLBACK_PERCENTILE)), f"p{CPU_FALLBACK_PERCENTILE:.0f}"
+    return float(np.percentile(all_norms, cutoff_percentile)), f"p{cutoff_percentile:g}"
 
 
 def neighbor_cosines(input_embeddings: torch.Tensor, grid_size: tuple[int, int], outlier_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -148,12 +166,18 @@ def neighbor_cosines(input_embeddings: torch.Tensor, grid_size: tuple[int, int],
     return np.asarray(normal_values, dtype=np.float32), np.asarray(outlier_values, dtype=np.float32)
 
 
-def collect_figure5a(model: DINOv2FeatureModel, images: list, mode: str, cutoff_mode: str) -> tuple[np.ndarray, np.ndarray, dict]:
+def collect_figure5a(
+    model: DINOv2FeatureModel,
+    images: list,
+    mode: str,
+    cutoff_mode: str,
+    cutoff_percentile: float,
+) -> tuple[np.ndarray, np.ndarray, dict]:
     """Collect Figure 5a normal/outlier cosine-similarity samples."""
 
     features = [model.extract(selected.image) for selected in images]
     all_norms = np.concatenate([feature.output_norms for feature in features], axis=0)
-    cutoff, cutoff_source = choose_cutoff(all_norms, mode, cutoff_mode)
+    cutoff, cutoff_source = choose_cutoff(all_norms, mode, cutoff_mode, cutoff_percentile)
 
     normal_parts: list[np.ndarray] = []
     outlier_parts: list[np.ndarray] = []
@@ -179,7 +203,7 @@ def collect_figure5a(model: DINOv2FeatureModel, images: list, mode: str, cutoff_
         "cutoff": cutoff,
         "cutoff_source": cutoff_source,
         "paper_cutoff": PAPER_NORM_CUTOFF,
-        "cpu_fallback_percentile": CPU_FALLBACK_PERCENTILE,
+        "cutoff_percentile": cutoff_percentile,
         "patch_tokens": total_token_count,
         "outlier_patch_tokens": outlier_token_count,
         "outlier_patch_fraction": outlier_token_count / total_token_count,
@@ -210,36 +234,49 @@ def plot_figure5a(normal_cosines: np.ndarray, outlier_cosines: np.ndarray, outpu
     plt.close(figure)
 
 
-def collect_probe_dataset(model: DINOv2FeatureModel, images: list, mode: str, cutoff_mode: str) -> tuple[dict, dict]:
+def collect_probe_dataset(
+    model: DINOv2FeatureModel,
+    images: list,
+    mode: str,
+    cutoff_mode: str,
+    cutoff_percentile: float,
+) -> tuple[dict, dict]:
     """Collect frozen patch embeddings and labels for Figure 5b probes."""
 
     features = [model.extract(selected.image) for selected in images]
     all_norms = np.concatenate([feature.output_norms for feature in features], axis=0)
-    cutoff, cutoff_source = choose_cutoff(all_norms, mode, cutoff_mode)
+    cutoff, cutoff_source = choose_cutoff(all_norms, mode, cutoff_mode, cutoff_percentile)
 
     embeddings: list[torch.Tensor] = []
     positions: list[torch.Tensor] = []
     pixels: list[torch.Tensor] = []
     outlier_masks: list[torch.Tensor] = []
+    fallback_outlier_images = 0
+    fallback_normal_images = 0
     for feature in features:
+        outlier_mask = feature.output_norms > cutoff
+        if not np.any(outlier_mask):
+            outlier_mask[int(feature.output_norms.argmax())] = True
+            fallback_outlier_images += 1
+        if np.all(outlier_mask):
+            outlier_mask[int(feature.output_norms.argmin())] = False
+            fallback_normal_images += 1
+
         embeddings.append(feature.output_embeddings)
         positions.append(feature.position_targets)
         pixels.append(feature.pixel_targets)
-        outlier_masks.append(torch.from_numpy(feature.output_norms > cutoff))
+        outlier_masks.append(torch.from_numpy(outlier_mask))
 
     x = torch.cat(embeddings, dim=0).float()
     position_y = torch.cat(positions, dim=0).long()
     pixel_y = torch.cat(pixels, dim=0).float()
     outlier_mask = torch.cat(outlier_masks, dim=0).bool()
 
-    if int(outlier_mask.sum()) == 0:
-        raise RuntimeError("No outlier patches found for Figure 5b. Try --cutoff-mode percentile or increase --max-images.")
-
     metadata = {
         "cutoff": cutoff,
         "cutoff_source": cutoff_source,
         "paper_cutoff": PAPER_NORM_CUTOFF,
-        "cpu_fallback_percentile": CPU_FALLBACK_PERCENTILE,
+        "cutoff_percentile": cutoff_percentile,
         "image_count": len(images),
         "patch_tokens": int(x.shape[0]),
         "outlier_patch_tokens": int(outlier_mask.sum()),
@@ -247,6 +284,8 @@ def collect_probe_dataset(model: DINOv2FeatureModel, images: list, mode: str, cu
         "feature_dim": int(x.shape[1]),
         "pixel_target_dim": int(pixel_y.shape[1]),
         "num_positions": int(position_y.max().item() + 1),
+        "fallback_outlier_images": fallback_outlier_images,
+        "fallback_normal_images": fallback_normal_images,
     }
     dataset = {
         "x": x,
@@ -291,6 +330,8 @@ def standardize_features(train_x: torch.Tensor, all_x: torch.Tensor) -> tuple[to
 def train_position_probe(
     train_x: torch.Tensor,
     train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
     num_positions: int,
     device: torch.device,
     epochs: int,
@@ -305,21 +346,56 @@ def train_position_probe(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     train_x = train_x.to(device)
     train_y = train_y.to(device)
+    test_x = test_x.to(device)
+    test_y = test_y.to(device)
+    best_test_loss = float("inf")
+    best_state: dict[str, torch.Tensor] | None = None
+    epochs_without_improvement = 0
 
-    for _epoch in range(epochs):
+    for epoch in range(epochs):
         order = torch.randperm(train_x.shape[0], generator=generator)
+        epoch_loss = 0.0
+        batch_count = 0
         for start in range(0, order.numel(), batch_size):
             batch = order[start : start + batch_size].to(device)
             loss = F.cross_entropy(model(train_x[batch]), train_y[batch])
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
+            epoch_loss += float(loss.detach().cpu())
+            batch_count += 1
+        mean_loss = epoch_loss / max(batch_count, 1)
+        with torch.no_grad():
+            logits = model(test_x)
+            test_loss = F.cross_entropy(logits, test_y).item()
+
+        improved = test_loss < best_test_loss
+        if improved:
+            best_test_loss = test_loss
+            best_state = {name: value.detach().cpu().clone() for name, value in model.state_dict().items()}
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        print(
+            f"[position probe] epoch {epoch + 1}/{epochs} "
+            f"train_loss={mean_loss:.4f} test_loss={test_loss:.4f} "
+            f"best_test_loss={best_test_loss:.4f} wait={epochs_without_improvement}/{EARLY_STOPPING_PATIENCE}"
+        )
+        if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            print(f"[position probe] early stop at epoch {epoch + 1}/{epochs}")
+            break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
     return model
 
 
 def train_reconstruction_probe(
     train_x: torch.Tensor,
     train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
     device: torch.device,
     epochs: int,
     batch_size: int,
@@ -333,15 +409,48 @@ def train_reconstruction_probe(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     train_x = train_x.to(device)
     train_y = train_y.to(device)
+    test_x = test_x.to(device)
+    test_y = test_y.to(device)
+    best_test_loss = float("inf")
+    best_state: dict[str, torch.Tensor] | None = None
+    epochs_without_improvement = 0
 
-    for _epoch in range(epochs):
+    for epoch in range(epochs):
         order = torch.randperm(train_x.shape[0], generator=generator)
+        epoch_loss = 0.0
+        batch_count = 0
         for start in range(0, order.numel(), batch_size):
             batch = order[start : start + batch_size].to(device)
             loss = F.mse_loss(model(train_x[batch]), train_y[batch])
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
+            epoch_loss += float(loss.detach().cpu())
+            batch_count += 1
+        mean_loss = epoch_loss / max(batch_count, 1)
+        with torch.no_grad():
+            recon = model(test_x)
+            test_loss = F.mse_loss(recon, test_y).item()
+
+        improved = test_loss < best_test_loss
+        if improved:
+            best_test_loss = test_loss
+            best_state = {name: value.detach().cpu().clone() for name, value in model.state_dict().items()}
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        print(
+            f"[reconstruction probe] epoch {epoch + 1}/{epochs} "
+            f"train_loss={mean_loss:.4f} test_loss={test_loss:.4f} "
+            f"best_test_loss={best_test_loss:.4f} wait={epochs_without_improvement}/{EARLY_STOPPING_PATIENCE}"
+        )
+        if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            print(f"[reconstruction probe] early stop at epoch {epoch + 1}/{epochs}")
+            break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
     return model
 
 
@@ -433,15 +542,20 @@ def plot_figure5b(metrics: dict, output_path: Path) -> None:
 def run_figure5b(args: argparse.Namespace, images: list, model: DINOv2FeatureModel, device: torch.device) -> tuple[dict, dict]:
     """Train and evaluate Figure 5b local-information probes."""
 
-    dataset, metadata = collect_probe_dataset(model, images, args.mode, args.cutoff_mode)
+    dataset, metadata = collect_probe_dataset(model, images, args.mode, args.cutoff_mode, args.cutoff_percentile)
     train_idx, test_idx = make_stratified_split(dataset["outlier_mask"], args.train_fraction, args.seed)
     train_x, all_x = standardize_features(dataset["x"][train_idx], dataset["x"])
     train_y_position = dataset["position_y"][train_idx]
     train_y_pixels = dataset["pixel_y"][train_idx]
+    test_x = all_x[test_idx]
+    test_y_position = dataset["position_y"][test_idx]
+    test_y_pixels = dataset["pixel_y"][test_idx]
 
     position_probe = train_position_probe(
         train_x,
         train_y_position,
+        test_x,
+        test_y_position,
         metadata["num_positions"],
         device,
         args.probe_epochs,
@@ -452,6 +566,8 @@ def run_figure5b(args: argparse.Namespace, images: list, model: DINOv2FeatureMod
     reconstruction_probe = train_reconstruction_probe(
         train_x,
         train_y_pixels,
+        test_x,
+        test_y_pixels,
         device,
         args.probe_epochs,
         args.batch_size,
@@ -501,7 +617,13 @@ def parse_args() -> argparse.Namespace:
         "--cutoff-mode",
         choices=("auto", "paper", "percentile"),
         default="auto",
-        help="Outlier norm cutoff: paper=150, percentile=99th percentile, auto=paper when it yields outliers.",
+        help="Outlier norm cutoff: paper=150, percentile=<cutoff-percentile>, auto=paper when it yields outliers.",
+    )
+    parser.add_argument(
+        "--cutoff-percentile",
+        type=percentile_arg,
+        default=DEFAULT_CUTOFF_PERCENTILE,
+        help="Percentile used when cutoff mode is percentile, or when auto falls back to percentile.",
     )
     parser.add_argument(
         "--output",
@@ -540,7 +662,13 @@ def main() -> None:
     }
 
     if args.part == "5a":
-        normal_cosines, outlier_cosines, stats = collect_figure5a(model, images, args.mode, args.cutoff_mode)
+        normal_cosines, outlier_cosines, stats = collect_figure5a(
+            model,
+            images,
+            args.mode,
+            args.cutoff_mode,
+            args.cutoff_percentile,
+        )
         plot_figure5a(normal_cosines, outlier_cosines, args.output)
         metadata["figure5a_stats"] = stats
         print(f"Saved Figure 5a reproduction to {args.output}")
