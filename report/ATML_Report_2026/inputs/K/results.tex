@@ -1,18 +1,71 @@
 \subsection{Results}
 \label{sec:results}
-Start with a high-level overview of your results. Do your results support the main claims of the original paper? Keep this section as factual and precise as possible, and reserve your judgment and discussion points for the next "Discussion" section. 
-
+The 4 experiments are intended to verify 4 qualitative claims of the original paper in relation to the main characteristic and information stored inside outlier patches embeddings. 
+The experiments confirms these claims 
 
 \subsubsection{Results reproducing original paper}
-For each experiment, say 1) which claim in Section~\ref{sec:claims} it supports, and 2) if it successfully reproduced the associated experiment in the original paper. 
-For example, an experiment training and evaluating a model on a dataset may support a claim that that model outperforms some baseline.
-Logically group related results into subsubsections. 
 
-\subsubsubsection{Result 1}
-\subsubsubsection{Result 2}
+\subsubsubsection{Claim 1: all models but DINO exhibit peaky outlier values
+in the attention maps.}
 
-\subsubsection{Results beyond original paper}
-Often papers don't include enough information to fully specify their experiments, so some additional experimentation may be necessary. For example, it might be the case that batch size was not specified, and so different batch sizes need to be evaluated to reproduce the original results. Include the results of any additional experiments here. Note: this won't be necessary for all reproductions.
- 
-\subsubsubsection{Additional Result 1}
-\subsubsubsection{Additional Result 2}
+% insert plot figure2
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{inputs/K/figure2_att_map.png}
+    \caption{Attention maps for 6 different model families.}
+    \label{fig:figure2}
+\end{figure}
+
+\subsubsubsection{Claim 2: DINOv2 has a few outlier patches, whereas DINO does not present these artifacts.}
+% insert plot figure3
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{inputs/K/figure3_norms.png}
+    \caption{Norm distribution of local features for DINO and DINOv2.}
+    \label{fig:figure3}
+\end{figure}
+
+\subsubsubsection{Claim 3: high-norm tokens appear where patch information is redundant and hold little local information}
+% insert figure5a 
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{inputs/K/figure5a_neighbor_cosine.png}
+    \caption{Cosine similarity of outlier/normal patches to their neighbors.}
+    \label{fig:figure5a}
+\end{figure}
+
+% insert table 5b
+\begin{table}[h]
+    \centering
+    \footnotesize
+    \caption{Figure 5b local information probing results.}
+    \label{tab:figure5b-local-probes}
+    \begin{tabular}{lccc}
+        \toprule
+        Token group & Position top-1 acc. (\%) & Avg. distance & Reconstruction $L_2$ error \\
+        \midrule
+        Normal  & 19.4 & 1.19 & 17.78 \\
+        Outlier & 9.7  & 5.92 & 22.64 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsubsection{Claim 4: high-norm tokens hold global information}
+
+\begin{table}[h]
+    \centering
+    \footnotesize
+    \caption{Reproduced Table~1 top-1 accuracy (\%) for classification from the \texttt{[CLS]} token, one normal patch token, and one outlier patch token.}
+    \label{tab:table1-probes}
+    \begin{tabular}{lcccccccc}
+        \toprule
+        Token & CIFAR10 & CIFAR100 & Caltech101 & DTD & FGVCAircraft & Flowers102 & Food101 & OxfordIIITPet \\
+        \midrule
+        \texttt{[CLS]} & 99.00 & 85.00 & 92.00 & 77.00 & 51.50 & 99.50 & 79.00 & 92.50 \\
+        Normal patch   & 82.50 & 29.50 & 41.00 & 44.00 & 3.50  & 23.50 & 10.50 & 14.50 \\
+        Outlier patch  & 99.00 & 83.00 & 94.50 & 79.00 & 45.00 & 99.00 & 73.50 & 84.50 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+

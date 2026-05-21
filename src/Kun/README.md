@@ -121,7 +121,8 @@ norms before the final ViT LayerNorm, matching the norm extraction used for
 Figure 3. By default, `--cutoff-mode auto` uses the paper cutoff `150` when it
 finds outliers; otherwise it falls back to the 99th-percentile cutoff so the CPU
 proxy still produces normal/outlier comparison curves. Use `--cutoff-mode paper`
-to force the paper threshold.
+to force the paper threshold, or `--cutoff-mode percentile --cutoff-percentile 97`
+to select a custom percentile cutoff.
 
 ## Step 4: Figure 5b
 
@@ -140,27 +141,42 @@ Outputs:
 The position probe predicts patch-grid index and reports top-1 accuracy plus
 average Euclidean distance in patch coordinates. The reconstruction probe
 predicts flattened preprocessed patch pixels and reports mean per-patch L2
-error. Increase `--max-images` for more stable numbers; reduce
-`--probe-epochs` for a faster smoke test.
+error. Increase `--max-images` for more stable numbers. The same cutoff controls are available
+here, for example:
+
+```bash
+python3 src/Kun/code/make_figure5.py --part 5b --cutoff-mode percentile --cutoff-percentile 98
+```
 
 ## Step 5: Table 1
 
-Train image-classification linear probes from three frozen DINOv2
+Train image-classification logistic-regression probes from three frozen DINOv2
 representations per image: `[CLS]`, one random normal patch token, and one
 random outlier patch token:
 
 ```bash
-python3 src/Kun/code/make_table1.py --mode cpu --device auto --datasets cifar10
+python3 src/Kun/code/make_table1.py --mode cpu --device auto --dataset cifar10
 ```
 
 Outputs:
 
-- `src/Kun/results/table1_linear_probe.png`
-- `src/Kun/results/table1_linear_probe.csv`
-- `src/Kun/results/table1_linear_probe.json`
+- `src/Kun/results/table1_<dataset>_linear_probe.csv`
+- `src/Kun/results/table1_<dataset>_linear_probe.json`
+
+Supported torchvision datasets in this script are:
+`cifar10`, `cifar100`, `caltech101`, `flowers102`, `pets`, `dtd`,
+`aircraft`, `cars`, `food101`, and `sun397`.
 
 CPU mode uses `facebook/dinov2-large` and capped dataset subsets
-(`--max-train-images 200`, `--max-test-images 100` by default). CIFAR10 is the
-reliable lightweight default. Caltech101 is attempted when requested, but the
-script skips it with a warning if the current torchvision mirror is unavailable.
-Use larger caps for more stable scores.
+(`--max-train-images 200`, `--max-test-images 100` by default). Use
+`--train-data-fraction` to limit how much of the training split is used before
+the hard cap is applied, for example:
+
+```bash
+python3 src/Kun/code/make_table1.py --dataset food101 --train-data-fraction 0.1 --max-train-images 500
+```
+
+Datasets without an official torchvision train/test split in this script use a
+deterministic class-balanced split controlled by `--custom-split-fraction`.
+The classifier is sklearn multinomial logistic regression, with
+`--logreg-max-iter` controlling the solver iteration budget.

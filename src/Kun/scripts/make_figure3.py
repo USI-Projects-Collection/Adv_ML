@@ -181,7 +181,7 @@ def plot_figure3(
     hist_xmax = 600
     bins = np.linspace(0.0, hist_xmax, 80)
     dino_hist_axis.hist(dino_hist_norms, bins=bins, color="#3b528b", alpha=0.9)
-    dino_hist_axis.axvline(PAPER_NORM_CUTOFF, color="#d62728", linestyle="--", linewidth=1.5)
+    # dino_hist_axis.axvline(PAPER_NORM_CUTOFF, color="#d62728", linestyle="--", linewidth=1.5)
     dino_hist_axis.set_title("DINO norm distribution")
     dino_hist_axis.set_xlabel("patch-token L2 norm")
     dino_hist_axis.set_ylabel("count")
@@ -189,7 +189,7 @@ def plot_figure3(
     dino_hist_axis.set_xlim(0.0, hist_xmax)
 
     dinov2_hist_axis.hist(dinov2_hist_norms, bins=bins, color="#3b528b", alpha=0.9)
-    dinov2_hist_axis.axvline(PAPER_NORM_CUTOFF, color="#d62728", linestyle="--", linewidth=1.5, label="paper cutoff 150")
+    # dinov2_hist_axis.axvline(PAPER_NORM_CUTOFF, color="#d62728", linestyle="--", linewidth=1.5, label="paper cutoff 150")
     if "cpu_fallback_cutoff" in stats:
         dinov2_hist_axis.axvline(
             stats["cpu_fallback_cutoff"],
@@ -250,7 +250,6 @@ def main() -> None:
     torch.manual_seed(args.seed)
 
     images, image_source = load_images(args)
-    breakpoint()
     reference = images[args.reference_offset]
     if args.hist_source == "reference":
         hist_images = [reference]
