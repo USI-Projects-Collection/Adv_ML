@@ -211,7 +211,7 @@ Three deviation from the paper are noted:
 \subsubsection{Experimental setup and code}
 All experiments use PyTorch forward hooks to intercept intermediate model activations without modifying the underlying model architecture. This was the central technical pattern throughout the replication.
 
-\textbf{Object discovery - LOST quantitative evaluation (Table ~\ref{}).}
+\textbf{Object discovery: LOST quantitative evaluation (Table~\ref{tab:object_discovery}).}
 A hook on \texttt{model.blocks[-1].attn.qkv} (\texttt{timm}) or
 \texttt{resblocks[-1].attn} (\texttt{OpenCLIP}) captures the raw QKV output;
 keys or values are separated by reshaping the \texttt{(B, N, 3C)} tensor.
@@ -231,7 +231,7 @@ Inference runs in FP16 on GPU (\texttt{batch size = 32});
 LOST runs per-image on CPU in float32. Code is available in \texttt{object\_discovery\_table\_3.py} \\
 \textit{Evaluation metric:} CorLoc — \% images with IoU(predicted box, best GT box) $\geq$ 0.5.
 
-\textbf{Qualitative attention maps (Figure ~\ref{}).}
+\textbf{Qualitative attention maps (Figure~\ref{fig:qualitative_attention}).}
 A hook on \texttt{model.blocks[-1].attn}
 recomputes $\mathrm{softmax}(QK^{\top}/\sqrt{d})$
 from the QKV output.
@@ -239,20 +239,20 @@ The resulting \texttt{(B, H, N, N)} matrix is averaged across heads;
 rows for CLS and each register are reshaped to a $37 \times 37$ spatial grid.
 Code is available in \texttt{dino\_att\_maps\_comparison.py}
 
-\textbf{LOST intermediate maps (Figure ~\ref{}).}
+\textbf{LOST intermediate maps (Figure~\ref{fig:lost_intermediate_steps}).}
 Same hook and pipeline as above on a single image.
 Three maps are retained and plotted as spatial grids:
 (1) inverse-degree ($1/\mathrm{degree}$, high = candidate foreground),
 (2) raw similarity row of the seed patch,
 (3) binary seed-expansion mask.
-For Figure 14 (\texttt{OpenCLIP} values),
+For Figure~\ref{fig:seed_expansion_openclip} (\texttt{OpenCLIP} values),
 the hook is moved to the full
 \texttt{ResidualAttentionBlock} output instead of the QKV projection ---
 the pre-LN normalisation in \texttt{OpenCLIP}
 erases norm differences between patches when projecting directly to $V$. Code is available in \texttt{appendix\_C.py} \\
 \textit{Evaluation metric:} qualitative assessment of the three LOST intermediate maps.
 
-\textbf{Norm distributions (Figure ~\ref{}).}
+\textbf{Norm distributions (Figure~\ref{fig:token_norms_dinov2}).}
 A hook on \texttt{model.norm} captures \texttt{inputs[0]}
 (pre-LayerNorm residual stream), not output ---
 post-LayerNorm activations are rescaled by learned parameters

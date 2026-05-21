@@ -55,9 +55,8 @@ class AttentionFeatureExtractor:
 
     def _register_hook(self):
         if self.model_backend == "timm":
-            # timm: hook the QKV Linear directly (reads its output, no recompute)
             last_attn = self.model.blocks[-1].attn
-            
+
             def hook(module, input, output):
                 x = input[0]
                 B, N, C = x.shape
@@ -73,38 +72,45 @@ class AttentionFeatureExtractor:
             self.hook_handle = last_attn.register_forward_hook(hook)
 
         elif self.model_backend in ("open_clip", "open_clip_hf"):
-            # For Keys and Queries: recompute from in_proj_weight on the
-            # pre-LN input — this correctly shows the raw projection differences.
-            #
-            # For Values: DO NOT recompute from in_proj_weight.
-            # Reason: inputs[0] to MultiheadAttention is already LayerNorm-normalised
-            # (OpenCLIP uses pre-norm architecture). LayerNorm erases the norm
-            # difference between outlier and normal patches, so V = W_V @ LN(x)
-            # looks uniform across all patches — the null-space effect disappears.
-            # The paper's claim ("values suppress artifacts") refers to the
-            # ATTENDED output — softmax(QK^T/√d) · V — which is the full block
-            # output. We hook the ResidualAttentionBlock output for values only.
+            if self.model_backend == "open_clip":
+                last_attn = self.model.visual.transformer.resblocks[-1].attn
+            else:
+                last_attn = self.model.model.visual.transformer.resblocks[-1].attn
 
             if self.feature_type == "values":
-                # Hook the full ResidualAttentionBlock output (post-attention + residual)
-                if self.model_backend == "open_clip":
-                    block = self.model.visual.transformer.resblocks[-1]
-                else:  # open_clip_hf
-                    block = self.model.model.visual.transformer.resblocks[-1]
+                # For values: recompute the full attention-weighted output
+                # softmax(QK^T / sqrt(d)) @ V
+                # This is where the null-space effect lives: outlier patches
+                # receive near-zero attention weight after the softmax, so they
+                # vanish in the attended output even without registers.
+                def hook_attn_out(module, input, output):
+                    x = input[0]          # (B, N, C) — pre-LN input to attn
+                    B, N, _ = x.shape
+                    C_in      = module.in_proj_weight.shape[1]
+                    num_heads = module.num_heads
+                    head_dim  = C_in // num_heads
+                    scale     = head_dim ** -0.5
 
-                def hook_values(module, input, output):
-                    # output: (B, N, C) — attended representation after residual add
-                    self.features = output
+                    # Project to Q, K, V
+                    qkv = F.linear(x, module.in_proj_weight, module.in_proj_bias)
+                    qkv = qkv.reshape(B, N, 3, num_heads, head_dim)
+                    qkv = qkv.permute(2, 0, 3, 1, 4)  # (3, B, H, N, D)
+                    q, k, v = qkv[0], qkv[1], qkv[2]  # each (B, H, N, D)
 
-                self.hook_handle = block.register_forward_hook(hook_values)
+                    # Attention weights: softmax(QK^T / sqrt(d))
+                    attn = (q @ k.transpose(-2, -1)) * scale   # (B, H, N, N)
+                    attn = attn.softmax(dim=-1)
+
+                    # Attended output: softmax(QK^T) @ V → (B, H, N, D)
+                    out = (attn @ v)                            # (B, H, N, D)
+                    # Reshape to (B, N, C)
+                    out = out.permute(0, 2, 1, 3).reshape(B, N, C_in)
+                    self.features = out
+
+                self.hook_handle = last_attn.register_forward_hook(hook_attn_out)
 
             else:
-                # Keys or Queries: recompute from in_proj_weight (correct for these)
-                if self.model_backend == "open_clip":
-                    last_attn = self.model.visual.transformer.resblocks[-1].attn
-                else:
-                    last_attn = self.model.model.visual.transformer.resblocks[-1].attn
-
+                # Keys and queries: raw projection from in_proj_weight
                 def hook_kq(module, input, output):
                     x = input[0]
                     B, N, _ = x.shape
@@ -373,7 +379,7 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
 
     n_cols = len(configs)
     n_rows = 3
-    row_labels = ["LOST\nscore", "Dot prod.\nw/ seed", "Seed\nexpansion"]
+    row_labels = ["", "LOST\nscore", "Dot prod.\nw/ seed", "Seed\nexpansion"]
     cmaps = ["viridis", "viridis", "gray"]
 
     # Collect results: list of (lost_score_map, dot_prod_map, seed_exp_map)
@@ -482,13 +488,9 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
     """
     Replicates Figure 14 (Appendix C):
     Rows = [w/o REG, w/ REG]
-    Cols = [keys, queries, values]
-
-    Key finding to verify:
-      - Keys and queries w/o REG show clear artifact spots in the background.
-      - Values w/o REG are already smooth — outliers live in the null space
-        of the value projection layer (paper Appendix C, last paragraph).
-      - With REG, all three feature types become clean.
+    Cols = [Input, keys, queries, values]
+    Shows the dot-product-with-seed map (continuous, not binary) for each
+    feature type, matching the paper's smooth viridis visualisation.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"\n[Figure 14] Using device: {device}")
@@ -497,7 +499,7 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
     img_size   = 224
     patch_size = 16
     grid_size  = img_size // patch_size
-    bias       = 0.1      # same as OpenCLIP in Table 3
+    bias       = 0.1
 
     image = Image.open(image_path).convert("RGB")
     transform = T.Compose([
@@ -506,6 +508,7 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
         T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     input_tensor = transform(image).unsqueeze(0).to(device)
+    input_img_display = image.resize((img_size, img_size))
 
     # ---- Load OpenCLIP without registers ----
     print("  Loading OpenCLIP w/o registers ...")
@@ -513,16 +516,14 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
         "ViT-B-16", pretrained="laion2b_s34b_b88k"
     )
     model_no_reg = model_no_reg.to(device).eval()
-
     results_no_reg = {}
     for ft in feature_types:
         patch_feats = get_patch_features(
             model_no_reg, "open_clip", 1, input_tensor,
             feature_type=ft, bias=bias
         )
-        _, dot_prod, seed_exp, _ = lost_intermediate_stages(patch_feats, bias=bias)
-        # Figure 14 shows seed expansion maps
-        results_no_reg[ft] = seed_exp.reshape(grid_size, grid_size)
+        _, dot_prod, _, _ = lost_intermediate_stages(patch_feats, bias=bias)
+        results_no_reg[ft] = dot_prod.reshape(grid_size, grid_size)
     del model_no_reg
 
     # ---- Load OpenCLIP with test-time registers ----
@@ -531,15 +532,14 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
         "amildravid4292/clip-vitb16-test-time-registers", trust_remote_code=True
     ).to(device).eval()
     num_special_reg = 1 + getattr(model_reg, "num_register_tokens", 4)
-
     results_reg = {}
     for ft in feature_types:
         patch_feats = get_patch_features(
             model_reg, "open_clip_hf", num_special_reg, input_tensor,
             feature_type=ft, bias=bias
         )
-        _, dot_prod, seed_exp, _ = lost_intermediate_stages(patch_feats, bias=bias)
-        results_reg[ft] = seed_exp.reshape(grid_size, grid_size)
+        _, dot_prod, _, _ = lost_intermediate_stages(patch_feats, bias=bias)
+        results_reg[ft] = dot_prod.reshape(grid_size, grid_size)
     del model_reg
 
     # ---- Plot ----
@@ -547,37 +547,46 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
         ("w/o REG", results_no_reg),
         ("w/ REG",  results_reg),
     ]
-    col_labels = ["Keys", "Queries", "Values"]
+    col_labels = ["Input", "Keys", "Queries", "Values"]
 
-    fig, axes = plt.subplots(2, 3, figsize=(9, 6))
+    n_rows      = 2
+    n_cols      = 4   # input + 3 feature types
+    fig, axes   = plt.subplots(n_rows, n_cols, figsize=(12, 6))
     fig.subplots_adjust(hspace=0.08, wspace=0.05, top=0.88, bottom=0.04,
                         left=0.12, right=0.99)
 
-    for row_i, (row_label, result_dict) in enumerate(rows):
+    for row_i, (_, result_dict) in enumerate(rows):
+        # Col 0: input image
+        axes[row_i, 0].imshow(input_img_display)
+        axes[row_i, 0].axis("off")
+
+        # Cols 1-3: dot-product maps for each feature type
         for col_i, ft in enumerate(feature_types):
-            ax = axes[row_i, col_i]
-            ax.imshow(result_dict[ft], cmap="viridis", interpolation="nearest",
-                      vmin=0, vmax=1)
+            ax = axes[row_i, col_i + 1]
+            ax.imshow(result_dict[ft], cmap="viridis", interpolation="nearest")
             ax.axis("off")
-            if row_i == 0:
-                ax.set_title(col_labels[col_i], fontsize=11, fontweight="bold")
-            if col_i == 0:
-                ax.set_ylabel(row_label, fontsize=10, rotation=0,
-                              labelpad=45, va="center")
 
-    # Annotate the key finding from the paper
-    fig.text(
-        0.5, 0.01,
-        "Values (right column) suppress artifacts even without registers —\n"
-        "outliers appear to live in the null space of the value projection layer.",
-        ha="center", va="bottom", fontsize=8.5, style="italic",
-        color="#444444"
-    )
+        # Column headers on first row only
+        if row_i == 0:
+            for col_i, label in enumerate(col_labels):
+                axes[row_i, col_i].set_title(label, fontsize=11, fontweight="bold")
 
-    fig.suptitle(
-        "Figure 14 – OpenCLIP Seed Expansion: Keys / Queries / Values (Appendix C)",
-        fontsize=11, fontweight="bold"
-    )
+    # --- Row labels via fig.text ---
+    total_height = 0.88 - 0.04
+    row_height   = total_height / n_rows
+
+    for row_i, (row_label, _) in enumerate(rows):
+        row_bottom = 0.04 + (n_rows - 1 - row_i) * row_height
+        y_centre   = row_bottom + row_height / 2
+        fig.text(
+            0.07, y_centre,
+            row_label,
+            fontsize=10,
+            fontweight="bold",
+            ha="center", va="center",
+            rotation=90,
+            multialignment="center",
+        )
 
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     print(f"\n[Figure 14] Saved → {save_path}")
