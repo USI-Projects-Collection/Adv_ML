@@ -254,12 +254,6 @@ def plot_figure_16(maps, n_images, dataset_name, save_path):
     fig, axes = plt.subplots(1, 6, figsize=(13, 2.6),
                               gridspec_kw={"wspace": 0.04})
     fig.patch.set_facecolor("white")
-    fig.suptitle(
-        "Figure 16 — Positional Focus: Average Attention Maps (Appendix D.3)\n"
-        f"DINOv2+reg (ViT-Large, 4 registers)  ·  {dataset_name}"
-        f"  ·  {n_images} images",
-        fontsize=10, fontweight="bold", y=1.05
-    )
 
     # Shared scale for special tokens; independent for patch
     vmax_special = float(np.stack([maps[k] for k in order[:-1]]).max())

@@ -263,7 +263,7 @@ tokens are split by type using index positions
 and plotted as jittered strip plots over 500 COCO images. Code is available in \texttt{appendix\_D1.py} \\
 \textit{Evaluation metric:} visual comparison of norm strip plots.
 
-\textbf{Information held by tokens (Table ~\ref{} and Table ~\ref{}).}
+\textbf{Information held by tokens (Table ~\ref{tab:outlier_token_probes} and Table ~\ref{tab:local_information_probes}).}
 A hook on the last encoder block
 (\texttt{model.encoder.layer[-1]}, HuggingFace)
 captures post-LayerNorm features.
@@ -277,7 +277,7 @@ Three probes are trained per token type:
 All features are standardised with \texttt{StandardScaler} before training. Code is available in \texttt{appendix\_D2.py} \\
 \textit{Evaluation metric:} top-1 accuracy on FGVC-Aircraft; top-1 position prediction over 49 classes; mean L2 pixel reconstruction error.
 
-\textbf{Positional focus (Figure ~\ref{}).}
+\textbf{Positional focus (Figure~\ref{fig:positional_focus}).}
 \texttt{fused\_attn=False} is set on all blocks
 to materialise the softmax matrix.
 A hook on \texttt{model.blocks[-1].attn.attn\_drop}

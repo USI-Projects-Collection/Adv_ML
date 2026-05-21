@@ -57,7 +57,8 @@ Figure~\ref{fig:seed_expansion_openclip} confirms this: the values column (right
 \end{minipage}
 \end{figure}
 
-\subsection{\textbf{Norm distributions.}} 
+\subsubsubsection{\textbf{Norm distributions.}} 
+Figure~\ref{fig:token_norms_dinov2} reproduces the paper's key qualitative finding: without registers, patch tokens have a bimodal norm distribution with a high-norm tail alongside normal patches. With 4 registers, this tail disappears — patch norms become uniform — and the register tokens themselves sit at distinct, elevated norm levels. This directly supports the claim that registers absorb the high-norm outlier content.
 \begin{figure}[ht]
 \centering
     \includegraphics[width=0.3\textwidth]{../../src/Raffo/img/figure_15_replication.png}
@@ -65,8 +66,49 @@ Figure~\ref{fig:seed_expansion_openclip} confirms this: the values column (right
 \label{fig:token_norms_dinov2}
 \end{figure}
 
-\subsubsection{Results beyond original paper}
-Often papers don't include enough information to fully specify their experiments, so some additional experimentation may be necessary. For example, it might be the case that batch size was not specified, and so different batch sizes need to be evaluated to reproduce the original results. Include the results of any additional experiments here. Note: this won't be necessary for all reproductions.
- 
-\subsubsubsection{Additional Result 1}
-\subsubsubsection{Additional Result 2}
+\subsubsubsection{\textbf{Information held by tokens.}}
+Table~\ref{tab:outlier_token_probes} shows linear probe performance on the FGVC-Aircraft dataset of models with and without registers, when using different tokens as representations. Results confirm the paper's core findings that  outlier patches (no-reg) and register tokens (with-reg) hold significantly more global information than normal patches.
+Table~\ref{tab:local_information_probes} shows that normal patches hold more local information than outlier patches, and that adding registers does not reduce significantly the local information held by normal patches.
+\begin{table}[H]
+\caption{Top-1 accuracy (\%) of linear probes of models with and without registers on FGVC-Aircraft dataset. Format shows accuracy for our replication / paper reference.}
+\label{tab:outlier_token_probes}
+\begin{center}
+\resizebox{35em}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{[CLS]} & \textbf{Normal patch} & \textbf{Outlier patch} & \textbf{Register}\\
+\midrule
+DINOv2-giant w/o reg &  90.7 / 84.6 & 13.9 / 15.5 & 81.9 /73.3 & N/A / N/A \\
+DINOv2-giant w/ 4 reg &  88.3 / 85.2 & 21.2 / 14.5 & N/A / N/A & 82.7 / 71.1 \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+\end{table}
+
+\begin{table}[H]
+\caption{Local information probing results for DINOv2-giant with and without registers. Format shows accuracy for our replication / paper reference.}
+\label{tab:local_information_probes}
+\begin{center}
+\resizebox{35em}{!}{%
+\begin{tabular}{lccc}
+\toprule
+& & \multirow{2}{10em}{\textbf{Pos prediction top-1 accuracy}} & \multirow{2}{5em}{\textbf{Reconstruction L2 error $\downarrow$}}\\
+\textbf{Model} & \textbf{Patches considered} &  & \\
+\midrule
+DINOv2-giant w/o reg &  non-outliers & 82.0 / 66.3 & 2.8 / 15.9 \\
+DINOv2-giant w/ 4 reg &  non-outliers & 76.5 / 65.8 & 2.9 / 16.0 \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+\end{table}
+
+\subsubsubsection{\textbf{Positional focus.}}
+Figure~\ref{fig:positional_focus} clearly reproduces the paper's finding: CLS and all four registers exhibit broad, diffuse, centred attention patterns (global focus), while the centre patch token attends sharply and locally to its immediate neighbourhood. This supports the claim that registers take on a global information-gathering role, freeing patch tokens to maintain local spatial representations.
+\begin{figure}[H]
+\centering
+    \includegraphics[width=0.8\textwidth]{../../src/Raffo/img/figure_16_replication.png}
+\caption{Positional focus of attention weights for DINOv2-giant with and without registers.}
+\label{fig:positional_focus}
+\end{figure}

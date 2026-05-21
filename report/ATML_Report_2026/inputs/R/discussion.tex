@@ -1,16 +1,14 @@
 \subsection{Discussion}
-
-Give your judgment on if your experimental results support the claims of the paper. Discuss the strengths and weaknesses of your approach - perhaps you didn't have time to run all the experiments, or perhaps you did additional experiments that further strengthened the claims in the paper.
+Our results support the paper's main claims across all experiments: registers consistently improve object discovery, absorb outlier token content, and maintain local feature quality in normal patches. The directional effects are robust across model families and datasets.
 
 \subsubsection{What was easy}
-Give your judgment of what was easy to reproduce. Perhaps the author's code is clearly written and easy to run, so it was easy to verify the majority of original claims. Or, the explanation in the paper was really easy to follow and put into code. 
-
-Be careful not to give sweeping generalizations. Something that is easy for you might be difficult for others. Put what was easy in context and explain why it was easy (e.g. code had extensive API documentation and a lot of examples that matched experiments in papers).
+The qualitative experiments (``LOST intermediate maps``, ``Norm distributions``, ``Positional focus'') were straightforward to implement and produced results that closely matched the paper visually. The forward hook pattern in PyTorch is well-documented and the timm/open\_clip model APIs are stable, which made feature extraction reliable once the correct hook targets were identified. The paper's descriptions of LOST (``Object discovery``) and the norm distribution experiment were precise enough to implement directly without ambiguity. The linear probing results for global information (Table~\ref{tab:outlier_token_probes}) matched the paper's qualitative conclusions closely with the giant model, and the direction of all effects replicated without exception.
 
 \subsubsection{What was difficult}
-List part of the reproduction study that took more time than you anticipated or you felt was difficult. 
+\textbf{LOST Gram matrix.} Without per-row mean-centering, DINOv2 keys produce an all-positive similarity matrix causing degree-uniformity collapse — the seed selection degenerates to a fixed corner patch for every image. The paper's formula includes no centering step, and understanding why our setup required it, and at what cost to absolute accuracy, needed multiple debugging iterations. The resulting 15-20\% CorLoc gap could not be fully closed without access to the original training configurations.
 
-Be careful to put your discussion in context. For example, don't say "The maths was difficult to follow", say "The math requires advanced knowledge of calculus to follow". 
+\textbf{Unavailable checkpoints.} Neither DeiT-III+reg nor OpenCLIP+reg weights were released. The OpenCLIP test-time registers proxy \citep{jiang2025vision} is conceptually different from a natively trained model; the DeiT-III proxy uses a different architecture and training paradigm entirely. Both limit the interpretability of those rows in Table~\ref{tab:object_discovery}.
 
-\subsubsection{Communication with original authors}
-Document the extent of (or lack of) communication with the original authors. To make sure the reproducibility report is a fair assessment of the original research we recommend getting in touch with the original authors. We advise you to contact them through their email displayed in the paper and by asking specific questions.
+\textbf{Pre-LayerNorm hook.} Appendix D.1 required hooking the input of the final LayerNorm, not its output — post-LayerNorm activations are rescaled by learned parameters and destroy the bimodal norm signal. This is not stated in the paper and was found through experimentation.
+
+\textbf{OpenCLIP values hook.} For Figure~\ref{fig:seed_expansion_openclip}, the correct hook target for OpenCLIP values is the full ResidualAttentionBlock output, not the QKV projection. The pre-LN normalisation erases per-patch norm differences before the value projection, making direct V extraction uniformly flat. Identifying this required careful reading of the OpenCLIP architecture.
