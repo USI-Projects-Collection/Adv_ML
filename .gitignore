@@ -143,9 +143,9 @@ PLAN.md
 # logs and results folder
 logs/
 results/
+report/ATML_Report_2026/inputs/P/OLD/
 
-# but DO track Poli/results — the report TeX references these figures directly.
-!src/Poli/results/
+# images for report
+!src/Kun/img/**
 !src/Poli/results/**
 !src/Raffo/img/**
-!src/Kun/img/**
