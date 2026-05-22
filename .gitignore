@@ -147,3 +147,4 @@ results/
 # but DO track Poli/results — the report TeX references these figures directly.
 !src/Poli/results/
 !src/Poli/results/**
+!src/Raffo/img/**
