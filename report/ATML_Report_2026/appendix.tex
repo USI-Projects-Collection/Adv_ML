@@ -80,6 +80,15 @@
 \href{http://host.robots.ox.ac.uk/pascal/VOC/voc2012/}{PASCAL VOC 2012} &
   Object detection, 20 categories, multiple objects per image &
   11{,}540 trainval images\\
+\href{https://huggingface.co/datasets/ILSVRC/imagenet-1k}{ImageNet-1k (subset)} &
+  Image classification, 1000 classes; 50 randomly chosen classes used here &
+  500 val images (10/class), split 350 train / 150 val \\
+\href{https://huggingface.co/datasets/zhoubolei/scene_parse_150}{ADE20k (subset)} &
+  Semantic segmentation, 150 stuff/object classes + background (ignore-index 0) &
+  500 val images, split 350 train / 150 val \\
+\href{https://huggingface.co/datasets/sayakpaul/nyu_depth_v2}{NYU Depth v2 (subset)} &
+  Indoor monocular depth in metres; Kinect-acquired RGB+depth pairs &
+  500 val images, split 350 train / 150 val \\
 \bottomrule
 \end{tabular}%
 }

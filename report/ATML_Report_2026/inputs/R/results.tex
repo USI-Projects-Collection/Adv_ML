@@ -27,7 +27,7 @@ DINOv2+reg & 38.4 / 55.4 & 41.6 / 60.0 & 32.9 / 42.0 \\
 The qualitative attention maps (Figure~\ref{fig:qualitative_attention}) show that CLS attends broadly to the subject, while each register token produces a distinct spatial pattern. The four registers show complementary attention regions, suggesting specialisation.
 \begin{figure}[ht]
 \centering
-    \includegraphics[width=\textwidth]{../../src/Raffo/img/dino_attention_maps_comparison.png}
+    \includegraphics[width=\textwidth]{../../src/Raffaele/img/dino_attention_maps_comparison.png}
 \caption{Comparison of attention maps for DINOv2 of the \texttt{[CLS]} and register tokens.}
 \label{fig:qualitative_attention}
 \end{figure}
@@ -35,7 +35,7 @@ The qualitative attention maps (Figure~\ref{fig:qualitative_attention}) show tha
 Figure~\ref{fig:lost_intermediate_steps} shows that for DINOv2 and DeiT-III, adding registers produces visibly cleaner dot-product and seed expansion maps — the noisy background activations present without registers are reduced. For OpenCLIP, the improvement is less striking, consistent with the paper's finding that OpenCLIP values already suppress outliers even without registers.
 \begin{figure}[ht]
 \centering
-    \includegraphics[width=0.8\textwidth]{../../src/Raffo/img/figure_13_replication.png}
+    \includegraphics[width=0.8\textwidth]{../../src/Raffaele/img/figure_13_replication.png}
 \caption{Intermediate computations in LOST algorithm for all models. Adding registers improves the look of intermediate steps.}
 \label{fig:lost_intermediate_steps}
 \end{figure}
@@ -44,14 +44,14 @@ Figure~\ref{fig:seed_expansion_openclip} confirms this: the values column (right
 \centering
 \begin{minipage}{0.65\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../src/Raffo/img/figure_14_replication.png}
+    \includegraphics[width=\textwidth]{../../src/Raffaele/img/figure_14_replication.png}
     \caption{Seed expansion score in LOST for OpenCLIP with and without registers for keys, queries, and values.}
     \label{fig:seed_expansion_openclip}
 \end{minipage}
 \hfill
 \begin{minipage}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../src/Raffo/img/figure_7_OPENCLIP.png}
+    \includegraphics[width=\textwidth]{../../src/Raffaele/img/figure_7_OPENCLIP.png}
     \caption{Effect of registers on the distribution of token norms for OpenCLIP.}
     \label{fig:token_norms_openclip}
 \end{minipage}
@@ -61,7 +61,7 @@ Figure~\ref{fig:seed_expansion_openclip} confirms this: the values column (right
 Figure~\ref{fig:token_norms_dinov2} reproduces the paper's key qualitative finding: without registers, patch tokens have a bimodal norm distribution with a high-norm tail alongside normal patches. With 4 registers, this tail disappears — patch norms become uniform — and the register tokens themselves sit at distinct, elevated norm levels. This directly supports the claim that registers absorb the high-norm outlier content.
 \begin{figure}[ht]
 \centering
-    \includegraphics[width=0.3\textwidth]{../../src/Raffo/img/figure_15_replication.png}
+    \includegraphics[width=0.3\textwidth]{../../src/Raffaele/img/figure_15_replication.png}
 \caption{Distribution of token norms for DINOv2 with and without registers. Registers reduce the number of high-norm outlier tokens among patch tokens.}
 \label{fig:token_norms_dinov2}
 \end{figure}
@@ -108,7 +108,7 @@ DINOv2-giant w/ 4 reg &  non-outliers & 76.5 / 65.8 & 2.9 / 16.0 \\
 Figure~\ref{fig:positional_focus} clearly reproduces the paper's finding: CLS and all four registers exhibit broad, diffuse, centred attention patterns (global focus), while the centre patch token attends sharply and locally to its immediate neighbourhood. This supports the claim that registers take on a global information-gathering role, freeing patch tokens to maintain local spatial representations.
 \begin{figure}[H]
 \centering
-    \includegraphics[width=0.8\textwidth]{../../src/Raffo/img/figure_16_replication.png}
+    \includegraphics[width=0.8\textwidth]{../../src/Raffaele/img/figure_16_replication.png}
 \caption{Positional focus of attention weights for DINOv2-giant with and without registers.}
 \label{fig:positional_focus}
 \end{figure}

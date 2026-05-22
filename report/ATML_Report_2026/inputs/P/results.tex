@@ -1,7 +1,11 @@
 \subsection{Results}
 \label{sec:results-P}
 
-\subsubsection{Tables 2a and 2b -- Linear and zero-shot evaluation}
+\subsubsection{Results reproducing original paper}
+
+\subsubsubsection{Table 2 -- Linear and zero-shot evaluation with frozen features}
+
+Table~\ref{tab:t2ab} reports the three linear probes (Top-1 / mIoU / RMSE) for each backbone with and without registers (left), and the OpenCLIP zero-shot Top-1 (right).
 
 \begin{minipage}{\linewidth}
     \centering
@@ -9,7 +13,8 @@
     \begin{tabular}{@{}c@{\hspace{1.5em}}c@{}}
         \begin{tabular}[b]{lccc}
         \toprule
-        \textbf{Model} & \textbf{Top-1} & \textbf{mIoU} & \textbf{RMSE} \\
+        & \textbf{ImageNet} & \textbf{ADE20k} & \textbf{NYUd} \\
+        \textbf{Model} & \textbf{Top-1} & \textbf{mIoU} & \textbf{RMSE} $\downarrow$ \\
         \midrule
         DeiT-III ViT-B/16            & \textbf{96.67} & 12.89 & 3.059 m \\
         DeiT-III +reg4 (injected)    & 96.00 & \textbf{13.27} & \textbf{3.036 m} \\
@@ -24,6 +29,7 @@
         &
         \begin{tabular}[b]{lc}
         \toprule
+        & \textbf{ImageNet} \\
         \textbf{Model} & \textbf{Zero-shot Top-1} \\
         \midrule
         OpenCLIP ViT-B/16         & \textbf{94.00} \\
@@ -37,52 +43,19 @@
     \end{tabular}}
     \par\vspace{4pt}
     \captionsetup{position=below}
-    \captionof{table}{Reproduction of Table~2 from \citet{darcet2024vision}: (a) linear probes on frozen features (350 train / 150 val, 50 ImageNet classes; OpenCLIP +reg uses test-time registers \citep{jiang2025vision}, DeiT-III +reg injects untrained tokens at inference); (b) OpenCLIP zero-shot Top-1 with 11-prompt ensemble.}
+    \captionof{table}{Reproduction of Table~2 from \citet{darcet2024vision}: (a) linear probes on frozen features; (b) OpenCLIP zero-shot Top-1 with the 11-prompt ensemble. Model checkpoints in Table~\ref{tab:models}, dataset details in Table~\ref{tab:datasets}.}
     \label{tab:t2ab}
 \end{minipage}
 
-The DINOv2 row reproduces the central claim: trained registers improve all three probes (+0.67~pt Top-1, +0.49~pt mIoU, $-0.775$~m RMSE). Although the gains on classification are modest, the RMSE improvement on NYUd is a $39\%$ relative reduction, which is the kind of dense-prediction effect the paper emphasises. OpenCLIP with test-time registers shows no Top-1 change and small dense-prediction gains, consistent with \citet{jiang2025vision}. The DeiT-III result is the most interesting: injecting four \emph{untrained} register-token parameters at inference into a model that never saw them during pre-training produces a small $-0.67$~pt Top-1 regression but still improves mIoU ($+0.38$~pt) and RMSE ($-0.023$~m). This suggests that even random register slots act as a partial sink for high-norm outliers, supporting the paper's mechanistic interpretation that the registers' role is primarily to absorb artifact tokens rather than to encode dedicated information. The $-0.67$~pt zero-shot drop in Table~2b corresponds to one misclassified image on the 150-image val set and is within subset variance, consistent with the conclusion of \citet{jiang2025vision} that test-time registers do not significantly degrade zero-shot performance.
+\vspace{4pt}
+The DINOv2 row is the cleanest comparison (both checkpoints from the original paper) and reproduces the central claim: trained registers improve all three probes ($+0.67$~pt Top-1, $+0.49$~pt mIoU, $-0.775$~m RMSE, i.e.\ a $39\%$ relative reduction). OpenCLIP with test-time registers shows no Top-1 change and small dense-prediction gains, consistent with \citet{jiang2025vision}; the $-0.67$~pt zero-shot drop (one misclassified image on 150) is within subset variance. DeiT-III with injected \emph{untrained} register-token parameters regresses $-0.67$~pt on Top-1 but still improves mIoU and RMSE, suggesting that even random register slots act as a partial sink for high-norm outliers -- evidence in favour of the paper's mechanistic interpretation that registers' role is to absorb artifact tokens rather than to carry trained information.
 
-\subsubsection{Figure 8 -- Attention maps and linear evaluation vs.\ number of registers}
+\subsubsubsection{Figure 8 -- Attention maps and linear evaluation vs.\ number of registers}
 
-The original Figure~8 of \citet{darcet2024vision} sweeps a model trained from scratch with $N \in \{0,1,2,4,8,16\}$ register tokens. Without retraining we cannot reproduce this exactly, so we compare three approximations: (1)~truncating or cycling the registers of the released DINOv2-reg4 checkpoint, (2)~the test-time register intervention of \citet{jiang2025vision} on the no-register DINOv2 baseline, and (3)~our independent variant of the latter. Each approximation tests a different aspect: (1)~probes how robust an already-trained register model is to changes in $N$ at inference; (2)~tests whether a register-free model can be retrofitted with the register \emph{behaviour} at inference; (3)~controls for the value-duplication design choice in Jiang's intervention. Figure~\ref{fig:f8-top} shows the last-layer CLS$\to$patch attention maps; Figure~\ref{fig:f8-bot} shows the corresponding downstream metrics, with numerical values in Table~\ref{tab:f8}.
+\citet{darcet2024vision} sweep $N\in\{0,1,2,4,8,16\}$ register tokens by retraining DINOv2 from scratch for each value -- a regime out of our compute budget. We instead compare three retraining-free approximations defined in Section~\ref{sec:method-P}. Qualitative attention maps for all three are stacked in Figure~\ref{fig:f8-top} (appendix); the corresponding downstream metrics are in Figure~\ref{fig:f8-bot} and Table~\ref{tab:f8} (appendix). Numerical values for the truncate/cycle proxy are: $N=0\!\to\!70.67\%$ Top-1 (collapse, model expects 4 registers); $N=1\!\to\!93.33\%$; $N=2\!\to\!92.67\%$; $N=4\!\to\!94.67\%$; $N=8\!\to\!94.67\%$; $N=16\!\to\!95.33\%$. For the Jiang and independent variants on the unmodified DINOv2 baseline, Top-1 jumps from $94.00\%$ at $N=0$ to $95.33\%$ at $N=1$ and remains flat through $N=8$, before collapsing sharply at $N=16$ ($92.00\%$ for Jiang, $92.67\%$ for the independent variant). Both methods qualitatively reproduce the paper's key finding -- a single register is sufficient to absorb the high-norm outlier and stabilise the attention map -- and the magnitudes of the $N=0\!\to\!1$ jump are consistent in sign with the paper, although our absolute values lie above the paper's because our 50-class ImageNet subset is much easier than the full 1000-class benchmark.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{../../src/Poli/results/figure8_top/figure8_top.png}
-\includegraphics[width=\linewidth]{../../src/Poli/results/figure8_top_ttreg/figure8_top_ttreg.png}
-\includegraphics[width=\linewidth]{../../src/Poli/results/figure8_top_ttreg_indep/figure8_top_ttreg_indep.png}
-\caption{Attention maps for $N\in\{0,1,2,4,8,16\}$ registers. \textbf{Row 1}: truncate/cycle proxy on DINOv2-reg4 -- maps are noisy for $N<4$ because the model expects 4 registers. \textbf{Row 2}: Jiang test-time registers on the DINOv2 baseline -- the single outlier is absorbed immediately at $N=1$. \textbf{Row 3}: independent variant (top-$N$ distinct outliers distributed across $N$ registers) -- maps clean up from $N=1$; small residual hotspot at $N=8,16$.}
-\label{fig:f8-top}
-\end{figure}
+\subsubsection{Results beyond original paper}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\linewidth]{../../src/Poli/results/figure8_bottom.png}
-    \includegraphics[width=\linewidth]{../../src/Poli/results/figure8_bottom_ttreg.png}
-    \includegraphics[width=\linewidth]{../../src/Poli/results/figure8_bottom_ttreg_indep.png}
-    \caption{Linear evaluation metrics (Top-1 ImageNet, mIoU ADE20k, RMSE NYUd) vs.\ number of registers for the three methods. \textbf{Row 1}: truncate/cycle -- near-binary behaviour ($N=0$ catastrophic, $N\geq1$ plateau) because the model expects exactly 4 registers. \textbf{Row 2}: Jiang test-time registers -- plateau from $N=1$, collapse at $N=16$. \textbf{Row 3}: independent variant -- same profile, confirming the collapse is not caused by value duplication.}
-    \label{fig:f8-bot}
-\end{figure}
+\subsubsubsection{Independent variant of the Jiang test-time register intervention}
 
-\begin{table}[h]
-\centering
-\caption{Numerical values for Figure~8 (bottom). All three methods on DINOv2.}
-\label{tab:f8}
-\begin{tabular}{ccccccc}
-\toprule
-& \multicolumn{3}{c}{\textbf{Jiang tt-reg}} & \multicolumn{3}{c}{\textbf{Independent variant}} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-$N$ & Top-1 & mIoU & RMSE & Top-1 & mIoU & RMSE \\
-\midrule
-0  & 94.00\% & 19.99\% & 2.04 m & 94.00\% & 19.41\% & 1.13 m \\
-1  & 95.33\% & 19.99\% & 1.09 m & 95.33\% & 19.49\% & 2.26 m \\
-2  & 95.33\% & 19.87\% & 1.20 m & 95.33\% & 18.91\% & 2.87 m \\
-4  & 95.33\% & 19.03\% & 0.93 m & 95.33\% & 18.53\% & 1.69 m \\
-8  & 95.33\% & \textbf{19.98\%} & 1.49 m & 95.33\% & 19.26\% & 2.03 m \\
-16 & 92.00\% & 18.83\% & 2.95 m & 92.67\% & 19.17\% & 3.88 m \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Three observations stand out. \textbf{First}, both test-time register methods confirm the paper's core claim qualitatively and quantitatively at $N=1$: a single register is sufficient to absorb the high-norm outlier (the attention map cleans up immediately) and Top-1 jumps from $94.00\%$ to $95.33\%$ -- a gain consistent in sign with the $+0.5$~pt the paper reports for trained registers. \textbf{Second}, both methods plateau at the same $95.33\%$ from $N=1$ all the way through $N=8$, replicating the flat shape of the paper's Figure~8 bottom-left panel. The depth (RMSE) and segmentation (mIoU) panels are noisier because the linear heads for those tasks have far more parameters than the logistic regression head and overfit more readily on our 350-image training subset. \textbf{Third}, both methods exhibit a sharp Top-1 collapse at $N=16$ ($-3.3$~pt for Jiang, $-2.7$~pt for the independent variant). This is the most informative finding beyond the paper: since the independent variant rules out value duplication as the cause, and diagnostic measurements confirm that patch-token norms after the intervention are clean at all $N\geq1$ ($\max \approx 51$, no patch above $60$), the collapse cannot be attributed to residual artifacts in the patch stream. Instead it points to a disruption in the six post-intervention transformer blocks (18--23) that were never trained on so many strongly active broadcast tokens. The test-time intervention is therefore correctly scoped at $N=1$ but does not scale to the very large $N$ values the paper sweeps through with retraining.
+A close reading of Jiang's code (\texttt{shared/hook\_fn.py}, function \texttt{activate\_on\_registers}) reveals that for each register neuron the top-1 outlier value is duplicated identically across all $N$ test-time registers. The collapse we observe at $N=16$ might therefore be caused by the CLS token attending to 16 near-identical broadcast nodes and diluting its global readout. To test this we introduced a controlled variant in which, for each neuron, the top-$N$ distinct outlier patches are picked and their signed values are written onto $N$ different registers (so register $i$ receives the $(i{+}1)$-th outlier). Patch positions are zeroed exactly as in Jiang's pipeline. The numerical results are reported alongside the Jiang re-implementation in Table~\ref{tab:f8} (appendix); the qualitative attention maps are in Figure~\ref{fig:f8-top} row~3. \textbf{The hypothesis is falsified}: the $N=16$ collapse persists ($92.67\%$ vs.\ $92.00\%$ for Jiang), the Top-1 profile is otherwise identical to Jiang's, and diagnostic measurements confirm that the patch-token norms after the intervention are clean at all $N\geq 1$ (max patch norm $\sim 51$, no patch above $60$). Since neither the writing policy nor residual artifacts on the patches explain the collapse, the failure mode must lie in the downstream transformer blocks (18--23 of DINOv2 ViT-L/14) that follow the intervention point and were never trained to process so many simultaneously active broadcast tokens. This is a falsifiable finding that does not appear in either source paper.
