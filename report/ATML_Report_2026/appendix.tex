@@ -1,5 +1,91 @@
 \appendix
 \section{Citations, figures, and tables}
+\begin{table}[H]
+\caption{Model checkpoints used in this work.}
+\label{tab:models}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+\textbf{Model Family} & \textbf{Model} & \textbf{Architecture} & \textbf{Params} & \textbf{Pretraining} \\
+\midrule
+\midrule
+\multirow{5}{10em}{\textit{DINOv2 family}} & \href{https://huggingface.co/timm/vit_base_patch14_dinov2.lvd142m}{DINOv2-B (ViT-B/14)} &
+  ViT, patch 14, $518{\times}518$ &
+  ${\sim}87$M &
+  DINO\,v2 on LVD-142M \\
+& \href{https://huggingface.co/timm/vit_base_patch14_reg4_dinov2.lvd142m}{DINOv2-B-reg4 (ViT-B/14)}&
+  Same + 4 register tokens &
+  ${\sim}87$M &
+  DINO\,v2 on LVD-142M \\
+& \href{https://huggingface.co/facebook/dinov2-giant}{DINOv2-G (ViT-g/14, no reg)} &
+  ViT, patch 14, $d{=}1536$, 40 blocks &
+  ${\sim}1.1$B &
+  DINO\,v2 on LVD-142M \\
+& \href{https://huggingface.co/facebook/dinov2-vitg14-reg}{DINOv2-G (ViT-g/14, reg4)} &
+  Same + 4 register tokens &
+  ${\sim}1.1$B &
+  DINO\,v2 on LVD-142M \\
+& \href{https://huggingface.co/timm/vit_large_patch14_reg4_dinov2.lvd142m}{DINOv2-L-reg4 (ViT-L/14)}&
+  ViT, patch 14, $d{=}1024$, 24 blocks, 16 heads &
+  ${\sim}304$M &
+  DINO\,v2 on LVD-142M \\
+\midrule
+\multirow{2}{10em}{\textit{OpenCLIP family}} & \href{https://huggingface.co/laion/CLIP-ViT-B-16-laion2B-s34B-b88K}{OpenCLIP ViT-B/16} &
+  ViT, patch 16, $224{\times}224$ &
+  ${\sim}86$M (vision) &
+  Contrastive on LAION-2B \\
+& \href{https://huggingface.co/amildravid4292/clip-vitb16-test-time-registers}{OpenCLIP ViT-B/16 (test-time reg)} &
+  Same; register neurons redirected into dummy token &
+  ${\sim}86$M (vision) &
+  Contrastive on LAION-2B \\
+\midrule
+\multirow{2}{10em}{\textit{DeiT-III family}} & \href{https://huggingface.co/timm/deit3_base_patch16_224.fb_in22k_ft_in1k}{DeiT-III ViT-B/16} &
+  ViT, patch 16, $224{\times}224$ &
+  ${\sim}87$M &
+  ImageNet-22K $\to$ ImageNet-1K fine-tune \\
+& \href{https://huggingface.co/timm/vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k}{DeiT-III ViT-B/16-reg4 (proxy)} &
+  ViT, patch 16, 4 registers, GAP head &
+  --- &
+  ImageNet-12k $\to$ ImageNet-1K fine-tune \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+\vspace{4pt}
+\end{table}
+
+\begin{table}[ht]
+\caption{Datasets used in this work.}
+\label{tab:datasets}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+\textbf{Dataset} & \textbf{Description} & \textbf{Statistics} \\
+\midrule
+\href{https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/}{FGVC-Aircraft} &
+  Fine-grained aircraft classification, 100 variant classes &
+  6{,}667 train / 3{,}333 test \\
+\multirow{2}{10em}{\href{https://www.robots.ox.ac.uk/~vgg/data/pets/}{Oxford-IIIT Pet}} &
+  \multirow{2}{35em}{37 cat/dog breeds, used as a proxy for the paper's unavailable ImageNet-22k subset, chosen for its object-centric single-subject images} &
+  \multirow{2}{20em}{7{,}349 total} \\
+  & & & \\
+\href{https://cocodataset.org/\#download}{COCO val2017} &
+  Scene understanding, 80 categories, multiple objects per image &
+  5{,}000 val images\\
+\href{http://host.robots.ox.ac.uk/pascal/VOC/voc2007/}{PASCAL VOC 2007} &
+  Object detection, 20 categories, multiple objects per image &
+  5{,}011 trainval images \\
+\href{http://host.robots.ox.ac.uk/pascal/VOC/voc2012/}{PASCAL VOC 2012} &
+  Object detection, 20 categories, multiple objects per image &
+  11{,}540 trainval images\\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+\end{table}
+
 
 \paragraph{EXP1}
 \input{inputs/K/appendix.tex}
