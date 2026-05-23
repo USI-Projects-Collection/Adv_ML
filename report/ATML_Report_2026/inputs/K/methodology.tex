@@ -1,84 +1,43 @@
 \subsection{Methodology}
+
+
+
 This reproduction did \emph{not} use the authors' original code. Instead, it used an original implementation located under \texttt{src/Kun/scripts}, with one script per reproduced result: \texttt{make\_figure2.py}, \texttt{make\_figure3.py}, \texttt{make\_figure5.py}, and \texttt{make\_table1.py}. The implementation follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible otherwise is done through direct download from the dataset official website.
 
-\subsubsection{Datasets}
-
-\paragraph{Figures 2, 3, and 5.}
-all runs for Figures~2, 3, and 5 uses \texttt{Caltech101 via torchvision} as the image source.
-
-
-\paragraph{Table 1 datasets.}
-We use a subset of the following datasets:
-\texttt{cifar10, 10 classes}, \texttt{cifar100, 100 classes}, \texttt{caltech101, 101 classes}, \texttt{dtd, 47 classes}, \texttt{aircraft, 100 classes} , \texttt{flowers102, 102 classes}, \texttt{food101, 101 classe}. For each datasets we sample 500 training and 200 test images balanced across labels.
 
 \subsubsection{Hyperparameters}
-
-The most important hyperparameter across these experiments is the minimum norm value a patch feature vector must have in order to be considered as an outlier patch. In the paper this cutoff value is set heuristically to 150. 
-\begin{itemize}
-    \item For the 2 experiments in figure5 we use the same cutoff value.
-    \item For the Table1 experiments, outliers are defined using a soft cutoff equal to the 99th percentile of training-set patch norms, so that approximately 1\% of patches are labeled as outliers. In addition, if a given image contains no outlier patch under this rule, we fall back to selecting the highest-norm patch from that image as its outlier token.
-\end{itemize}
-
-\begin{table}[h]
-    \centering
-    \caption{Hyperparameters for the Figure~5b linear probes.}
-    \label{tab:figure5b-hparams}
-    \begin{tabular}{ll}
-        \toprule
-        Hyperparameter & Value \\
-        \midrule
-        Train fraction & 0.75 \\
-        Max epochs & 80 \\
-        Batch size & 512 \\
-        Learning rate & 0.001 \\
-        Optimizer & AdamW \\
-        Weight decay & $10^{-4}$ \\
-        Early stopping patience & 3 \\
-        Position probe loss & Cross-entropy \\
-        Reconstruction probe loss & MSE \\
-        Feature dimension & 1536 \\
-        Number of positions & 256 \\
-        Pixel target dimension & 588 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+The most important hyperparameter across these experiments is the minimum norm value a patch feature vector must have in order to be considered as an outlier patch. In the paper, this cutoff is chosen heuristically as 150; we use the same value unless otherwise specified.
 
 \subsubsection{Experimental setup and code}
 
-\paragraph{Figure 2 attention maps.}
-\texttt{make\_figure2.py} loads the 6 model families indicated by the paper and outputs the attention map, extracted from the last self-attention layer, of 4 random images.
 
-\paragraph{Figure 3 norm analysis.}
-\texttt{make\_figure3.py} compares the local features norms distribution for \texttt{DINO ViT-B/16} and \texttt{DINOv2 ViT-g/14} both on a single image and on a batch of 1000 images.
+\textbf{Visualization of attention maps (Paper Figure 2)}. We run 6 ViT models on 4 images sampled from \texttt{Caltech101} and visualize the attention map from the last self-attention layer. 
 
-\paragraph{Figure 5 local information probing.}
-\texttt{make\_figure5.py} uses\texttt{DINOv2 ViT-g/14} only and compares the cosine similarity of outlier/normal patches to its neighbor patches across 100 images. 
-In addition it performs linear probing for local information by training:
-\begin{itemize}
-    \item a linear classifier for patch-position prediction, and
-    \item a linear regressor for patch-pixel reconstruction.
-\end{itemize}.
-Linear probing is done with 500 images. 
+\textbf{DINO vs DINOv2 local feature norms (Paper Figure 3)}. We compare the local features norms distribution for \texttt{DINO ViT-B/16} and \texttt{DINOv2 ViT-g/14} both on a single image and on a batch of 1000 images sampled from \texttt{Caltech101}.
 
-\paragraph{Table 1 image classification probes.}
-\texttt{make\_table1.py} uses \texttt{DINOv2 ViT-g/14} as a frozen feature extractor:
-For each image in the dataset, the script extracts three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. It then trains three separate multinomial logistic regression classifiers, one per representation type.
+\textbf{Local properties of outlier patches (Paper Figure 5)}. We compare the distribution of cosine similarity between input patches embeddings and their 4 neighbors for both normal patches and outlier patches. In addition we perform linear probing for local information on both normal and outlier patches by training:
+namely (i) a linear classifier for patch-position prediction and (ii) a linear regressor for patch-pixel reconstruction.
+Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and outlier patches are both present in the training split while we test them separately on evaluation. We report the hyperparameter of the 2 linear models: 
+\begin{table}[h]
+    \centering
+    \label{tab:figure5b-hparams}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{llllllllllll}
+        % \toprule
+        Train fraction & Max epochs & Batch size & Learning rate & Optimizer & Weight decay & Early stopping patience & Position probe loss & Reconstruction probe loss & Feature dimension & Number of positions & Pixel target dimension \\
+        \midrule
+        0.75 & 80 & 512 & 0.001 & AdamW & $10^{-4}$ & 3 & Cross-entropy & MSE & 1536 & 256 & 588 \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
-\paragraph{Parameter counts.}
-The scripts do not record parameter counts. Insert the values here if they are needed in the final report:
+\textbf{Global properties of outlier patches (Paper Table 1)}
+We compare the class predictive capacity of different patch tokens: for each image we extract three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. We then trains three separate multinomial logistic regression classifiers, one per representation type. We fit the model on 8 different datasets, for each dataset we sample 500 images for training and 200 images for evaluation. If a certain image doesn't contain any outlier patch (norma > 150) we pick the the patch with the highest norm as outlier. The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
 
 \subsubsection{Computational requirements}
-The experiments executed locally on an Apple M4 Pro machine with 24\,GB unified memory. The mps backend is used whenever is possible; when some torch implementation are known to be unstable we fall back to cpu. 
+The experiments executed locally on an Apple M4 Pro machine with 24\,GB unified memory. The mps backend is used whenever is possible; when some torch implementation are known to be unstable we fall back to cpu.
+For experiment 1 the runtime is neglectable for every ViT model, for experiment 2 is $\approx 10 min$, for experiment 3 $\approx 10 min$, for experiment 4 $\approx 40 min$.  
 
-The following runtime and compute values should therefore be inserted from recorded experiment logs rather than inferred here:
-\begin{itemize}
-    \item \texttt{[INSERT AVERAGE RUNTIME FOR FIGURE 2 IN CPU MODE]}
-    \item \texttt{[INSERT AVERAGE RUNTIME FOR FIGURE 3 IN CPU MODE]}
-    \item \texttt{[INSERT AVERAGE RUNTIME FOR FIGURE 5a IN CPU MODE]}
-    \item \texttt{[INSERT AVERAGE RUNTIME FOR FIGURE 5b IN CPU MODE]}
-    \item \texttt{[INSERT AVERAGE RUNTIME FOR TABLE 1 PER DATASET]}
-    \item \texttt{[INSERT TOTAL WALL-CLOCK TIME / CPU-HOURS FOR THE REPORTED RUNS]}
-\end{itemize}
-
-Qualitatively, the most expensive operations in the scripts are repeated forward passes through DINOv2, especially in exact mode (\texttt{facebook/dinov2-giant}) and on larger datasets. Table~1 and Figure~5b are the most computationally demanding scripts because they combine feature extraction with downstream probe fitting.
