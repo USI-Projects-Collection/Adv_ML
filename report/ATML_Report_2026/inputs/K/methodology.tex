@@ -9,16 +9,7 @@ all runs for Figures~2, 3, and 5 uses \texttt{Caltech101 via torchvision} as the
 
 \paragraph{Table 1 datasets.}
 We use a subset of the following datasets:
-\begin{itemize}
-    \item \texttt{cifar10, 10 classes}
-    \item \texttt{cifar100, 100 classes}
-    \item \texttt{caltech101, 101 classes}
-    \item \texttt{dtd, 47 classes}
-    \item \texttt{aircraft, 100 classes} 
-    \item \texttt{flowers102, 102 classes}
-    \item \texttt{food101, 101 classes}
-\end{itemize}
-For each datasets we sample 500 training and 200 test images balanced across labels.
+\texttt{cifar10, 10 classes}, \texttt{cifar100, 100 classes}, \texttt{caltech101, 101 classes}, \texttt{dtd, 47 classes}, \texttt{aircraft, 100 classes} , \texttt{flowers102, 102 classes}, \texttt{food101, 101 classe}. For each datasets we sample 500 training and 200 test images balanced across labels.
 
 \subsubsection{Hyperparameters}
 
@@ -75,16 +66,7 @@ For each image in the dataset, the script extracts three candidate representatio
 
 \paragraph{Parameter counts.}
 The scripts do not record parameter counts. Insert the values here if they are needed in the final report:
-\begin{itemize}
-    \item DeiT-III-B: \texttt{[INSERT PARAMETER COUNT]}
-    \item DeiT-III-L: \texttt{[INSERT PARAMETER COUNT]}
-    \item OpenCLIP ViT-B-16: \texttt{[INSERT PARAMETER COUNT]}
-    \item OpenCLIP ViT-L-14: \texttt{[INSERT PARAMETER COUNT]}
-    \item DINO ViT-B/16: \texttt{[INSERT PARAMETER COUNT]}
-    \item DINOv2 ViT-B/14: \texttt{[INSERT PARAMETER COUNT]}
-    \item DINOv2 ViT-L/14: \texttt{[INSERT PARAMETER COUNT]}
-    \item DINOv2 ViT-g/14: \texttt{[INSERT PARAMETER COUNT]}
-\end{itemize}
+
 
 \subsubsection{Computational requirements}
 The experiments executed locally on an Apple M4 Pro machine with 24\,GB unified memory. The mps backend is used whenever is possible; when some torch implementation are known to be unstable we fall back to cpu. 
