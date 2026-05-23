@@ -3,260 +3,63 @@ This replication was conducted as an independent re-implementation from the pape
 
 \subsubsection{Model descriptions}
 Table~\ref{tab:models} summarises the model configurations used across the reproduced experiments.
- Original checkpoints for both OpenCLIP+reg and DeiT-III+reg were never publicly released: the OpenCLIP proxy follows \citet{jiang2025vision}; the DeiT-III proxy uses \texttt{vit\_base\_patch14\_reg4\_dinov2.lvd142m}, the closest available timm checkpoint, and is clearly labelled as a proxy in all results.
-
-% \begin{flushleft}
-%   $^\dagger$~Proxy models — original weights never released by the paper's authors.
-% \end{flushleft}
+Original checkpoints for both OpenCLIP+reg and DeiT-III+reg were never publicly released: the OpenCLIP proxy follows \citet{jiang2025vision}; the DeiT-III proxy uses \texttt{vit\_base\_patch14\_reg4\_dinov2.lvd142m}, the closest available timm checkpoint, and is clearly labelled as a proxy in all results.
 
 \subsubsection{Datasets}
-Table here to reference.
-% \begin{table}[ht]
-% \caption{Datasets used in this work.}
-% \label{tab:datasets}
-% \begin{center}
-% \resizebox{\textwidth}{!}{%
-% \begin{tabular}{lllll}
-% \toprule
-% \textbf{Dataset} & \textbf{Description} & \textbf{Statistics} & \textbf{Splits used} \\
-% \midrule
-% \href{https://www.robots.ox.ac.uk/~vgg/data/fgvc-aircraft/}{FGVC-Aircraft} &
-%   Fine-grained aircraft classification, 100 variant classes &
-%   6{,}667 train / 3{,}333 test &
-%   \texttt{trainval} / \texttt{test} \\
-% \multirow{2}{10em}{\href{https://www.robots.ox.ac.uk/~vgg/data/pets/}{Oxford-IIIT Pet}} &
-%   \multirow{2}{35em}{37 cat/dog breeds, used as a proxy for the paper's unavailable ImageNet-22k subset, chosen for its object-centric single-subject images} &
-%   \multirow{2}{20em}{7{,}349 total; 500 subsampled} &
-%   \multirow{2}{20em}{Combined; random subsample} \\
-%   & & & \\
-% \href{https://cocodataset.org/\#download}{COCO val2017} &
-%   Scene understanding, 80 categories, multiple objects per image &
-%   5{,}000 val images; 500 subsampled &
-%   \texttt{val2017}; random subsample \\
-% \href{http://host.robots.ox.ac.uk/pascal/VOC/voc2007/}{PASCAL VOC 2007} &
-%   Object detection, 20 categories, multiple objects per image &
-%   5{,}011 trainval images; 500 subsampled &
-%   \texttt{trainval}; random subsample \\
-% \href{http://host.robots.ox.ac.uk/pascal/VOC/voc2012/}{PASCAL VOC 2012} &
-%   Object detection, 20 categories, multiple objects per image &
-%   11{,}540 trainval images; 500 subsampled &
-%   \texttt{trainval}; random subsample \\
-% \bottomrule
-% \end{tabular}%
-% }
-% \end{center}
-% \end{table}
-All images are resized to the model's native resolution ($518 \times 518$ for DINOv2, $224 \times 224$ for OpenCLIP/DeiT-III) and normalised with ImageNet mean/std. No augmentation is applied.
+The datasets used are FGVC-Aircraft (\texttt{trainval}/\texttt{test}), Oxford-IIIT Pet (500 subsampled),
+COCO val2017 (4{,}952 annotated images), PASCAL VOC 2007 (\texttt{trainval}, 5{,}011 images), and
+PASCAL VOC 2012 (\texttt{trainval}, 11{,}540 images), all resized to the model's native resolution and
+normalised with ImageNet mean/std. No augmentation is applied (full details in Table~\ref{tab:datasets}).
 
 \subsubsection{Hyperparameters}
-All hyperparameters were taken directly from the paper or, where not specified, from standard practice. No hyperparameter search was performed.
-\par{\vspace{4pt}}
-\textbf{LOST algorithm.(\textbf{TODO: Link the relative experiment to this hyperparameter table (Paper Section 3.3, Appendix C)})}
-\begin{table}[H]
-\caption{Hyperparameters for LOST algorithm.}
-\label{tab:LOSTalgo}
-\begin{center}
-\resizebox{30em}{!}{%
-\begin{tabular}{lll}
-\toprule
-\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
-\midrule
-Gram matrix bias b (DINOv2) &
-  0.0 &
-  Paper, $\S.3.3$ \\
-Gram matrix bias b (OpenCLIP) &
-  0.1 &
-  Paper, $\S.3.3$ \\
-Gram matrix bias b (DeiT-III) &
-  0.1 &
-  Paper, $\S.3.3$ \\
-Adjacency threshold $\tau$ &
-  0.0 &
-  Paper, $\S.3.3$ \\
-Feature type (DINOv2) &
-  Keys($K$) &
-  Paper, $\S.3.3$ \\
-Feature type (OpenCLIP, DeiT-III) &
-  Values($V$) &
-  Paper, $\S.3.3$ \\
-Per-row mean-centering of Gram matrix &
-  &
-  Implementation necessity (see note) \\
-Batch size (Table 3 evaluation) &
-  32 &
-  Implementation choice \\
-Workers (Table 3 dataloader) &
-  4 &
-  Implementation choice \\
-\bottomrule
-\end{tabular}
-}
-\end{center}
-\end{table}
-\textbf{Linear probing (TODO: Link the relative experiment to this linear probing (Appendix D.2))}
-\begin{table}[H]
-\caption{Hyperparameters for linear probing.}
-\label{tab:linearprobe}
-\begin{center}
-\resizebox{35em}{!}{%
-\begin{tabular}{lll}
-\toprule
-\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
-\midrule
-Classifier &
-  Logistic Regression (\texttt{sklearn}) &
-  Paper, $Appendix\ D.2$ \\
-Regularisation C &
-  1.0 (classification), 0.1 (position) &
-  Standard default \\
-Max iterations &
-  1000 (classification), 300 (position) &
-  Convergence heuristic \\
-Solver &
-  lbfgs &
-  Efficient for dense features \\
-Feature normalisation &
-  \texttt{StandardScaler} (zero mean, unit variance) &
-  Standard practice \\
-Reconstruction regressor &
-  Ridge Regression, $\alpha=1.0$ &
-  Standard practice \\
-\bottomrule
-\end{tabular}
-}
-\end{center}
-\end{table}
-
-\textbf{Attention map averaging (TODO: Link the relative experiment to this attention map averaging (Appendix D.3))}
-\begin{table}[H]
-\caption{Hyperparameters for attention map averaging.}
-\label{tab:attmapavg}
-\begin{center}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lll}
-\toprule
-\textbf{Hyperparameter} & \textbf{Value} & \textbf{Source} \\
-\midrule
-\# of images averaged &
-  500 &
-  Our choice (paper: ``random subset``) \\
-Patch token used &
-  Centre patch at grid position (18,18) &
-  Our choice (all patches show the same qualitative behavior) \\
-\texttt{fused\_attn} &
-  False &
-  Required to materialise softmax matrix \\
-\bottomrule
-\end{tabular}%
-}
-\end{center}
-\end{table}
-Three deviation from the paper are noted:
-\textit{(1) Per-row mean-centering:} without centering, DINOv2 keys produce an all-positive Gram matrix causing degree-uniformity collapse; we subtract the per-row mean from G after bias addition. This suppresses genuine similarity variation and is the primary cause of the systematic 15-20\% CorLoc gap with the paper's numbers.
-\textit{(2) Outlier threshold:} the paper uses a fixed threshold of 150 for DINOv2-g; we use Otsu's method on the pre-LayerNorm norm histogram (with fallbacks to median+10×MAD and the 95th percentile), since the fixed value does not generalise across model sizes.
-\textit{(3) Position prediction:} we coarsen the paper's $37 \times 37$ position grid (1,369 classes) to $7 \times 7$ (49 classes) and subsample to 50k/20k train/test patches to make logistic regression tractable; this lowers absolute accuracy but leaves the relative model comparison unaffected.
+All hyperparameters were taken directly from the paper or, where not specified, from standard practice.
+\textbf{LOST algorithm} (experiments: object discovery, lost intermediate maps) hyperparameters are reported in Table~\ref{tab:LOSTalgo};
+\textbf{linear probing} (experiment information held by tokens) hyperparameters in Table~\ref{tab:linearprobe};
+and \textbf{attention map averaging} (experiment: positional focus) hyperparameters in Table~\ref{tab:attmapavg}.\\
+Three deviations from the paper are noted.
+\textit{(1) Per-row mean-centering:} without centering, DINOv2 keys produce an all-positive Gram matrix
+causing seed selection to collapse to a fixed corner patch; we subtract the per-row mean from $G$ after
+bias addition. This is the primary cause of the systematic 15--20\% CorLoc gap.
+\textit{(2) Outlier threshold:} instead of the paper's fixed threshold of 150, we use Otsu's method on the
+pre-LayerNorm norm histogram, which generalises across model sizes.
+\textit{(3) Position prediction:} we coarsen the $37{\times}37$ grid to $7{\times}7$ and subsample to
+50k/20k patches to make logistic regression tractable; the relative model comparison is unaffected.
 
 \subsubsection{Experimental setup and code}
-All experiments use PyTorch forward hooks to intercept intermediate model activations without modifying the underlying model architecture. This was the central technical pattern throughout the replication.
-
-\textbf{Object discovery: LOST quantitative evaluation (Table~\ref{tab:object_discovery}).}
-A hook on \texttt{model.blocks[-1].attn.qkv} (\texttt{timm}) or
-\texttt{resblocks[-1].attn} (\texttt{OpenCLIP}) captures the raw QKV output;
-keys or values are separated by reshaping the \texttt{(B, N, 3C)} tensor.
-Special tokens (CLS + registers) are stripped by index.
-The remaining patch features pass through:
-L2 normalise $\rightarrow$
-compute $G = \hat{K}\hat{K}^{\top} + b$,
-subtract per-row mean $\rightarrow$
-binarise at $\tau = 0$ $\rightarrow$
-compute patch degrees $\rightarrow$
-$\arg\min$ degree = seed $\rightarrow$
-expand to all patches with similarity $> 0$.
-The tightest bounding box around the expanded set is rescaled to original image size
-and scored against all GT boxes; an image is counted correct if
-$\max \mathrm{IoU} \geq 0.5$.
-Inference runs in FP16 on GPU (\texttt{batch size = 32});
-LOST runs per-image on CPU in float32. Code is available in \texttt{object\_discovery\_table\_3.py} \\
-\textit{Evaluation metric:} CorLoc — \% images with IoU(predicted box, best GT box) $\geq$ 0.5.
-
+All experiments use PyTorch forward hooks to extract intermediate activations without modifying the model.
+\textbf{Object discovery (Table~\ref{tab:object_discovery}).} A hook on \texttt{model.blocks[-1].attn.qkv} (timm)
+or \texttt{resblocks[-1].attn} (OpenCLIP) captures the QKV output; keys or values are separated by
+reshaping the $(B, N, 3C)$ tensor and stripping special tokens by index. Patch features pass through:
+L2 normalise $\to$ $G = \hat{K}\hat{K}^\top + b$, subtract per-row mean $\to$ binarise at $\tau{=}0$
+$\to$ degree computation $\to$ $\arg\min$ seed $\to$ seed expansion. The tightest box around the expanded
+set is scored against GT boxes; correct if $\max\,\text{IoU} \geq 0.5$. Inference in FP16 on GPU
+(batch~32); LOST per-image on CPU in float32. \textit{Evaluation metric:} CorLoc — \% images with IoU(predicted box, best GT box) $\geq$ 0.5.\\
 \textbf{Qualitative attention maps (Figure~\ref{fig:qualitative_attention}).}
 A hook on \texttt{model.blocks[-1].attn}
 recomputes $\mathrm{softmax}(QK^{\top}/\sqrt{d})$
 from the QKV output.
 The resulting \texttt{(B, H, N, N)} matrix is averaged across heads;
-rows for CLS and each register are reshaped to a $37 \times 37$ spatial grid.
-Code is available in \texttt{dino\_att\_maps\_comparison.py}
-
-\textbf{LOST intermediate maps (Figure~\ref{fig:lost_intermediate_steps}).}
-Same hook and pipeline as above on a single image.
-Three maps are retained and plotted as spatial grids:
-(1) inverse-degree ($1/\mathrm{degree}$, high = candidate foreground),
-(2) raw similarity row of the seed patch,
-(3) binary seed-expansion mask.
-For Figure~\ref{fig:seed_expansion_openclip} (\texttt{OpenCLIP} values),
-the hook is moved to the full
-\texttt{ResidualAttentionBlock} output instead of the QKV projection ---
-the pre-LN normalisation in \texttt{OpenCLIP}
-erases norm differences between patches when projecting directly to $V$. Code is available in \texttt{appendix\_C.py} \\
-\textit{Evaluation metric:} qualitative assessment of the three LOST intermediate maps.
-
-\textbf{Norm distributions (Figure~\ref{fig:token_norms_dinov2}).}
-A hook on \texttt{model.norm} captures \texttt{inputs[0]}
-(pre-LayerNorm residual stream), not output ---
-post-LayerNorm activations are rescaled by learned parameters
-and destroy the bimodal norm signal.
-L2 norms are computed per token;
-tokens are split by type using index positions
-(CLS at 0, registers at 1--4, patches at 5--end)
-and plotted as jittered strip plots over 500 COCO images. Code is available in \texttt{appendix\_D1.py} \\
-\textit{Evaluation metric:} visual comparison of norm strip plots.
-
-\textbf{Information held by tokens (Table ~\ref{tab:outlier_token_probes} and Table ~\ref{tab:local_information_probes}).}
-A hook on the last encoder block
-(\texttt{model.encoder.layer[-1]}, HuggingFace)
-captures post-LayerNorm features.
-The same block's pre-LayerNorm input is used to compute patch norms
-for outlier detection (Otsu threshold).
-Three probes are trained per token type:
-(1) logistic regression on FGVC-Aircraft (global classification),
-(2) logistic regression on a $7 \times 7$ position grid
-(local position prediction),
-(3) Ridge regression from embedding to raw pixels (reconstruction).
-All features are standardised with \texttt{StandardScaler} before training. Code is available in \texttt{appendix\_D2.py} \\
-\textit{Evaluation metric:} top-1 accuracy on FGVC-Aircraft; top-1 position prediction over 49 classes; mean L2 pixel reconstruction error.
-
-\textbf{Positional focus (Figure~\ref{fig:positional_focus}).}
-\texttt{fused\_attn=False} is set on all blocks
-to materialise the softmax matrix.
-A hook on \texttt{model.blocks[-1].attn.attn\_drop}
-captures the
-\texttt{(B, H, N\_total, N\_total)}
-softmax weight tensor.
-Averaged across $H = 16$ heads per image,
-rows for CLS (index 0),
-each register (indices 1--4),
-and the centre patch (index $5 + 685$)
-are accumulated over 500 Oxford-IIIT Pet images
-and reshaped to $37 \times 37$ grids. Code is available in \texttt{appendix\_D3.py} \\
+rows for CLS and each register are reshaped to a $37 \times 37$ spatial grid.\\
+\textbf{LOST intermediate maps (Figure~\ref{fig:lost_intermediate_steps}).} Same hook and pipeline on a
+single image; three maps are retained: inverse-degree, seed similarity row, and binary expansion mask. For
+OpenCLIP values (Figure~\ref{fig:seed_expansion_openclip}), the hook moves to the full \texttt{ResidualAttentionBlock} output — pre-LN normalisation
+erases norm differences before the value projection. \textit{Evaluation metric:} qualitative assessment of the three LOST intermediate maps.\\
+\textbf{Norm distributions (Figure~\ref{fig:token_norms_dinov2}).} A hook on \texttt{model.norm} captures
+\texttt{inputs[0]} (pre-LayerNorm), not \texttt{output} — post-LN activations destroy the bimodal signal.
+L2 token norms are split by type (CLS at 0, registers at 1--4, patches at 5--end) and plotted as strip plots
+over 500 COCO images. \textit{Evaluation metric:} visual comparison of norm strip plots.\\
+\textbf{Information held by tokens (Tables~\ref{tab:outlier_token_probes}, ~\ref{tab:local_information_probes}).} A hook on
+\texttt{model.encoder.layer[-1]} (HuggingFace) captures post-LayerNorm features; the same block's
+pre-LN input is used for outlier detection. Three probes per token: logistic regression on FGVC-Aircraft
+(global), logistic regression on a $7{\times}7$ position grid (local), and Ridge regression to raw pixels
+(reconstruction). All features standardised before training.
+\textit{Evaluation metric:} top-1 accuracy on FGVC-Aircraft; top-1 position prediction over 49 classes; mean L2 pixel reconstruction error.\\
+\textbf{Positional focus (Figure~\ref{fig:positional_focus}).} \texttt{fused\_attn=False} forces materialisation
+of the softmax matrix. A hook on \texttt{model.blocks[-1].attn.attn\_drop} captures the
+$(B,H,N,N)$ tensor; rows for CLS (0), registers (1--4), and centre patch (5+685) are averaged across
+$H{=}16$ heads over 500 Oxford-IIIT Pet images and reshaped to $37{\times}37$.
 \textit{Evaluation metric:} visual comparison of attention heatmaps.
 
 \subsubsection{Computational requirements}
 \textbf{Hardware:} Single NVIDIA GPU (31.74 GiB VRAM) and single/double T4 (15.5 GiB each) on Kaggle. CPU work on MacBook Pro M3 Pro.
-\textbf{Total GPU time per experiment:}
-\begin{table}[H]
-\caption{Computational time per experiment.}
-\label{tab:computationaltime}
-\begin{center}
-\resizebox{30em}{!}{%
-\begin{tabular}{ll}
-\toprule
-\textbf{Experiment} & \textbf{Approx. GPU Time} \\
-\midrule
-LOST quantitative evaluation (Table ~\ref{}) & $\approx$45/50 min \\
-Information held by tokens (Table ~\ref{} and Table ~\ref{}) & $\approx$1 hr \\
-All other experiments & $\leq$15 min \\
-\bottomrule
-\end{tabular}%
-}
-\end{center}
-\end{table}
+Total GPU time per experiment is reported in Table~\ref{tab:computationaltime}.
