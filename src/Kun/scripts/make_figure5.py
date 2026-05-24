@@ -1,10 +1,4 @@
-"""Reproduce Figure 5 from "Vision Transformers Need Registers".
-
-This script implements Figure 5a and Figure 5b. Figure 5a compares cosine
-similarity between input patch embeddings and their 4-neighborhood. Figure 5b
-trains lightweight linear probes for local position prediction and pixel
-reconstruction, then evaluates normal and outlier patch tokens separately.
-"""
+"""Reproduce Figure 5 """
 
 from __future__ import annotations
 

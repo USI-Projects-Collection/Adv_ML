@@ -1,10 +1,4 @@
-"""Reproduce Figure 3 from "Vision Transformers Need Registers".
-
-Figure 3 compares local feature-token L2 norms for DINO and DINOv2 and plots a
-distribution of patch-token norms. Exact mode uses DINOv2 giant, matching the
-paper more closely. CPU mode uses DINOv2 large as a slower but more faithful
-proxy because the paper reports high-norm outliers mainly for larger models.
-"""
+"""Reproduce Figure 3 """
 
 from __future__ import annotations
 

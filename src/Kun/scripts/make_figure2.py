@@ -1,5 +1,4 @@
-"""Reproduce Figure 2 attention-map examples from "Vision Transformers Need Registers".
-"""
+"""Reproduce Figure 2 attention-map."""
 
 from __future__ import annotations
 

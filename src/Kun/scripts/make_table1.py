@@ -1,10 +1,4 @@
-"""Reproduce Table 1 from "Vision Transformers Need Registers".
-
-Each run trains image-classification linear probes from three frozen DINOv2
-representations per image: the class token, one normal patch token, and one
-high-norm/outlier patch token. The script runs one dataset per invocation and
-writes per-run PNG/CSV/JSON outputs.
-"""
+"""Reproduce Table 1"""
 
 from __future__ import annotations
 
