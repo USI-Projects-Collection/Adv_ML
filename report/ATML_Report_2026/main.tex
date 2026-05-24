@@ -27,6 +27,10 @@
 \usepackage{float}
 \usepackage{multirow}
 \usepackage{caption}
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{0pt}
+\titlespacing*{\subsection}{0pt}{0.8ex plus 0.2ex}{0pt}
+\titlespacing*{\subsubsection}{0pt}{0.5ex plus 0.2ex}{0pt}
 
 \title{ATML Report}
 
@@ -49,7 +53,14 @@
 \vspace{0.5cm}
 
 \begin{abstract}
- Concise and self-contained description of your project, motivation, and main findings.
+
+Introduce the specific setting or problem addressed in this work, and list the main claims from the original paper. Think of this as writing out the main contributions of the original paper. Each claim should be relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of the presented experiments.
+
+A claim should be something that can be supported or rejected by your data. An example is, ``Finetuning pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.''
+This is concise and is something that can be supported by experiments.
+An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z.
+
+
 \end{abstract}
 
 % \newpage
@@ -59,53 +70,51 @@
 \tableofcontents
 \par}
 
-\newpage
+% \newpage
 %%%%
 
 \section{Introduction}
-A few sentences placing the work in high-level context. Limit it to a few paragraphs at most; your report is on reproducing a piece of work, you don’t have to motivate that work.
-
-\section{Scope of reproducibility}
-\label{sec:claims}
 
 Introduce the specific setting or problem addressed in this work, and list the main claims from the original paper. Think of this as writing out the main contributions of the original paper. Each claim should be relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of the presented experiments.
 
 A claim should be something that can be supported or rejected by your data. An example is, ``Finetuning pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.''
 This is concise and is something that can be supported by experiments.
-An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z."
+An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z.
 
-This section roughly tells a reader what to expect in the rest of the report. Clearly itemize the claims you are testing:
-\begin{itemize}
-    \item Claim 1
-    \item Claim 2
-    \item Claim 3
-\end{itemize}
 
-Each experiment in Section~\ref{sec:results} will support (at least) one of these claims, so a reader of your report should be able to separately understand the \emph{claims} and the \emph{evidence} that supports them.
-
-\newpage
+\label{sec:claims}
+% \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \input{inputs/K/K_main.tex}
-\newpage
+% \newpage
 
 \input{inputs/P/P_main.tex}
-\newpage
+% \newpage
 
 \input{inputs/R/R_main.tex}
-\newpage
+% \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 \section{Conclusion}
-Try to summarize the achievements of your project and its limits, suggesting (when appropriate) possible extensions and future works.
+Introduce the specific setting or problem addressed in this work, and list the main claims from the original
+paper. Think of this as writing out the main contributions of the original paper. Each claim should be
+relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of
+the presented experiments.
+A claim should be something that can be supported or rejected by your data. An example is, “Finetuning
+pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.”
+This is concise and is something that can be supported by experiments. An example of a claim that is
+too vague, and can’t be supported by experiments, is “Contextual embedding models have shown strong
+performance on a number of tasks. We will run experiments evaluating two types of contextual embedding
+models on datasets X, Y, and Z."
 
 \section*{Member contributions}
 Include a section specifying how you organized the work within the group and clearly describe the contributions of each member. Make sure to properly balance the workload among the members.
 
 %%%%
-
+\newpage
 \bibliography{bibliography}
 \bibliographystyle{tmlr}
 
