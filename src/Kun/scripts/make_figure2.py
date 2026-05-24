@@ -1,9 +1,4 @@
 """Reproduce Figure 2 attention-map examples from "Vision Transformers Need Registers".
-
-The script creates a qualitative grid with four input images and last-layer
-class-token attention maps for ViT model families discussed in the paper.
-CPU mode uses one public checkpoint per family. Exact mode adds larger variants
-where public checkpoints are available, but it is intended for a GPU machine.
 """
 
 from __future__ import annotations

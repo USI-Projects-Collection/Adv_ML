@@ -1,17 +1,19 @@
 \subsection{Methodology}
 
+This reproduction is implemented through original codebase that follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible otherwise is done through direct download from the dataset official website.
 
+\subsubsection{Model descriptions}
+All 4 experiments are conducted using ViT models without register as features extractor. Experiment 1 is run with \texttt{DeiT-III-B}, \texttt{DeiT-III ViT-B/16}, \texttt{DeiT-III ViT-L/16}, \texttt{OpenCLIP ViT-B/16}, \texttt{OpenCLIP ViT-L/14}, \texttt{DINO ViT-B/16}, and \texttt{DINOv2 ViT-g/14}. Experiment 2,3,4 employ \texttt{DINOv2 ViT-g/14} model only. Model details are in table \ref{tab:models}
 
-This reproduction did \emph{not} use the authors' original code. Instead, it used an original implementation located under \texttt{src/Kun/scripts}, with one script per reproduced result: \texttt{make\_figure2.py}, \texttt{make\_figure3.py}, \texttt{make\_figure5.py}, and \texttt{make\_table1.py}. The implementation follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible otherwise is done through direct download from the dataset official website.
-
+\subsubsection{Datasets}
+Datasets used in the following 4 experiments are \texttt{cifar10}, \texttt{cifar100}, \texttt{caltech101}, \texttt{dtd}, \texttt{aircraft}, \texttt{flowers102}, \texttt{food101}, and \texttt{pets}. See table \ref{tab:datasets} for details. 
 
 \subsubsection{Hyperparameters}
 The most important hyperparameter across these experiments is the minimum norm value a patch feature vector must have in order to be considered as an outlier patch. In the paper, this cutoff is chosen heuristically as 150; we use the same value unless otherwise specified.
 
 \subsubsection{Experimental setup and code}
 
-
-\textbf{Visualization of attention maps (Paper Figure 2)}. We run 6 ViT models on 4 images sampled from \texttt{Caltech101} and visualize the attention map from the last self-attention layer. 
+\textbf{Visualization of attention maps (Paper Figure 2)}. We run 6 ViT models on 4 images sampled from \texttt{Caltech101} and visualize the attention map from the last self-attention layer from each model. 
 
 \textbf{DINO vs DINOv2 local feature norms (Paper Figure 3)}. We compare the local features norms distribution for \texttt{DINO ViT-B/16} and \texttt{DINOv2 ViT-g/14} both on a single image and on a batch of 1000 images sampled from \texttt{Caltech101}.
 
@@ -31,13 +33,15 @@ Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and o
     \end{tabular}%
     }
 \end{table}
+
 The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
 \textbf{Global properties of outlier patches (Paper Table 1)}
-We compare the class predictive capacity of different patch tokens: for each image we extract three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. We then trains three separate multinomial logistic regression classifiers, one per representation type. We fit the model on 8 different datasets, for each dataset we sample 500 images for training and 200 images for evaluation. If a certain image doesn't contain any outlier patch (norma > 150) we pick the the patch with the highest norm as outlier. The model used as features extractor is \texttt{DINOv2 ViT-g/14}
+We compare the class predictive capacity of different patch tokens: for each image we extract three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. We then trains three separate multinomial logistic regression classifiers, one per representation type. Among the 14 datasets chosen in the paper we pick 8 that are easier to download and store locally. We fit the logistic model on these 8 datasets.
+For each dataset we sample 500 images for training and 200 images for evaluation. If a certain image doesn't contain any outlier patch (norma > 150) we pick the the patch with the highest norm as outlier. The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
 
 \subsubsection{Computational requirements}
 The experiments executed locally on an Apple M4 Pro machine with 24\,GB unified memory. The mps backend is used whenever is possible; when some torch implementation are known to be unstable we fall back to cpu.
-For experiment 1 the runtime is neglectable for every ViT model, for experiment 2 is $\approx 10 min$, for experiment 3 $\approx 10 min$, for experiment 4 $\approx 40 min$.  
+For experiment 1 the runtime is neglectable, for experiment 2 is $\approx 20 min$, for experiment 3 $\approx 15 min$, for experiment 4 $\approx 1h $.  
 

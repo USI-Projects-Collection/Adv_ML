@@ -12,7 +12,7 @@ in the attention maps.} Our attention maps reproduce faithfully those in the pap
 \textbf{Claim 3: high-norm tokens appear where patch information is redundant and hold little local information}. Our experiment confirms that high norm tokens appears on patches that are very similar to their neighbors (see histogram in fig \ref{fig:neighbor_cosine}). Local probe results show that these high norm tokens hold little local information compared to normal norm tokens (see table in fig \ref{fig:neighbor_cosine}) since they achieve lower scores both in patch position prediction and patch reconstruction. 
 
 \textbf{Claim 4: high-norm tokens hold global information}
-Our experiment confirms that outlier tokens have higher accuracy on global class prediction, compared to normal tokens, across all 8 datasets that we tasted proving that they contains more global information (see table \ref{tab:global-probes}). 
+Our experiment confirms that outlier tokens have higher accuracy on global class prediction, compared to normal tokens, across the 8 datasets that we tasted. They contains more global information about the global image. (see table \ref{tab:global-probes}). 
 
 \begin{table}[h]
     \centering
