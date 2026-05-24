@@ -53,14 +53,7 @@
 \vspace{0.5cm}
 
 \begin{abstract}
-
-Introduce the specific setting or problem addressed in this work, and list the main claims from the original paper. Think of this as writing out the main contributions of the original paper. Each claim should be relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of the presented experiments.
-
-A claim should be something that can be supported or rejected by your data. An example is, ``Finetuning pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.''
-This is concise and is something that can be supported by experiments.
-An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z.
-
-
+ This reproducibility report investigates the central claims made in the paper "Vision Transformers Need Registers" \citep{darcet2024vision}. The original work suggests that Vision Transformers (ViTs) generate high-norm outlier tokens in low-information background areas, which are repurposed for global internal computations, leading to corrupted local feature maps. The proposed mechanism to resolve this is the addition of "register tokens", extra learnable tokens appended to the input sequence. Our experiments focus on verifying the emergence and content of these artifacts, the impact of register tokens on linear evaluation tasks and their ablation, and the reproduction of feature quality and object discovery improvements using the LOST algorithm. Overall, our findings robustly support the original claims across different model families and datasets: register tokens successfully absorb outlier token content, improve dense-prediction tasks, and do not degrade global linear performance. We also identify and document limitations related to test-time register proxies and undocumented implementation details.
 \end{abstract}
 
 % \newpage
@@ -70,16 +63,13 @@ An example of a claim that is too vague, and can't be supported by experiments, 
 \tableofcontents
 \par}
 
-% \newpage
+\newpage
 %%%%
 
 \section{Introduction}
+Vision Transformers (ViTs) have become standard architectures for computer vision tasks, particularly due to their compelling self-supervised representations. However, they are known to exhibit visual artifacts in the form of high-norm tokens scattered throughout low-informative background areas of the image. The paper "Vision Transformers Need Registers" \citep{darcet2024vision} characterizes these outlier tokens as a product of the attention mechanism repurposing uninformative patches to aggregate and store global image information, which inevitably harms local representations used in dense prediction tasks. 
 
-Introduce the specific setting or problem addressed in this work, and list the main claims from the original paper. Think of this as writing out the main contributions of the original paper. Each claim should be relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of the presented experiments.
-
-A claim should be something that can be supported or rejected by your data. An example is, ``Finetuning pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.''
-This is concise and is something that can be supported by experiments.
-An example of a claim that is too vague, and can't be supported by experiments, is ``Contextual embedding models have shown strong performance on a number of tasks. We will run experiments evaluating two types of contextual embedding models on datasets X, Y, and Z.
+To address this, the authors introduce the concept of "register tokens", supplementary learnable parameters inserted into the input sequence, serving as a dedicated workspace for global information processing. In this report, we attempt to independently reproduce the core claims of the paper. We start by confirming the underlying phenomena; the emergence of outlier tokens in standard ViT feature maps and their informational content. We then evaluate the effectiveness of register tokens on linear evaluation protocols and study the effect of varying the number of registers. Finally, we reproduce experiments showing that such tokens enhance local feature quality and substantially improve unsupervised object discovery.
 
 
 \label{sec:claims}
@@ -99,19 +89,20 @@ An example of a claim that is too vague, and can't be supported by experiments, 
 
 
 \section{Conclusion}
-Introduce the specific setting or problem addressed in this work, and list the main claims from the original
-paper. Think of this as writing out the main contributions of the original paper. Each claim should be
-relatively concise; some papers may not clearly list their claims, and one must formulate them in terms of
-the presented experiments.
-A claim should be something that can be supported or rejected by your data. An example is, “Finetuning
-pre-trained BERT on dataset X will have higher accuracy than an LSTM trained with GloVe embeddings.”
-This is concise and is something that can be supported by experiments. An example of a claim that is
-too vague, and can’t be supported by experiments, is “Contextual embedding models have shown strong
-performance on a number of tasks. We will run experiments evaluating two types of contextual embedding
-models on datasets X, Y, and Z."
+In this report, we successfully validated the key findings of \citet{darcet2024vision}. First, we corroborated the appearance of high-norm outliers in ViTs, which absorb global information from low-informative patches. Second, we proved that adding register tokens maintains or slightly improves linear evaluation accuracy, whilst significantly assisting dense-prediction tasks. Third, we verified that registers actively store outlier content, maintaining clean local feature quality and enhancing object discovery algorithms like LOST. 
+
+Nevertheless, our study was limited by the unavailability of pre-trained weights for DeiT-III and OpenCLIP variants equipped with native training registers, forcing us to incorporate test-time approximations or inject untrained tokens that complicated exact numerical replications. Furthermore, undocumented implementations, such as the missing per-row mean-centering in the LOST algorithm, created small margins of divergence in downstream accuracy scores. 
+
+Future work could address these limitations by fully re-evaluating the object discovery and localization pipelines on models pre-trained natively with registers from scratch. Investigating the point of collapse (e.g., at $N=16$) observed in our test-time register independent ablation could also provide deeper insights into the capacity bound and behavior of downstream transformer blocks when processing too many simultaneous global broadcast tokens.
 
 \section*{Member contributions}
-Include a section specifying how you organized the work within the group and clearly describe the contributions of each member. Make sure to properly balance the workload among the members.
+K.Z. was responsible for reproducing the results of Section 2. \\
+P.D. was responsible for reproducing the results of Section 3. \\
+R.P. was responsible for reproducing the results of Section 4. \\
+This division of work is reflected both in the structure of the repository's \texttt{src/} folder and in the drafting of this report.
+
+\section*{Usage of AI}
+AI tools were used for research purposes, coding assistance, and rephrasing the report.
 
 %%%%
 \newpage
