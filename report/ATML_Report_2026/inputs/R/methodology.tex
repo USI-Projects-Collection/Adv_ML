@@ -23,42 +23,47 @@ bias addition. This is the primary cause of the systematic 15--20\% CorLoc gap.
 \textit{(2) Outlier threshold:} instead of the paper's fixed threshold of 150, we use Otsu's method on the
 pre-LayerNorm norm histogram, which generalises across model sizes.
 \textit{(3) Position prediction:} we coarsen the $37{\times}37$ grid to $7{\times}7$ and subsample to
-50k/20k patches to make logistic regression tractable; the relative model comparison is unaffected.
+50k/20k patches to make logistic regression tractable.
 
 \subsubsection{Experimental setup and code}
 All experiments use PyTorch forward hooks to extract intermediate activations without modifying the model.
-\textbf{Object discovery (Table~\ref{tab:object_discovery}).} A hook on \texttt{model.blocks[-1].attn.qkv} (timm)
-or \texttt{resblocks[-1].attn} (OpenCLIP) captures the QKV output; keys or values are separated by
-reshaping the $(B, N, 3C)$ tensor and stripping special tokens by index. Patch features pass through:
-L2 normalise $\to$ $G = \hat{K}\hat{K}^\top + b$, subtract per-row mean $\to$ binarise at $\tau{=}0$
-$\to$ degree computation $\to$ $\arg\min$ seed $\to$ seed expansion. The tightest box around the expanded
-set is scored against GT boxes; correct if $\max\,\text{IoU} \geq 0.5$. Inference in FP16 on GPU
-(batch~32); LOST per-image on CPU in float32. \textit{Evaluation metric:} CorLoc — \% images with IoU(predicted box, best GT box) $\geq$ 0.5.\\
-\textbf{Qualitative attention maps (Figure~\ref{fig:qualitative_attention}).}
-A hook on \texttt{model.blocks[-1].attn}
-recomputes $\mathrm{softmax}(QK^{\top}/\sqrt{d})$
-from the QKV output.
-The resulting \texttt{(B, H, N, N)} matrix is averaged across heads;
-rows for CLS and each register are reshaped to a $37 \times 37$ spatial grid.\\
-\textbf{LOST intermediate maps (Figure~\ref{fig:lost_intermediate_steps}).} Same hook and pipeline on a
-single image; three maps are retained: inverse-degree, seed similarity row, and binary expansion mask. For
-OpenCLIP values (Figure~\ref{fig:seed_expansion_openclip}), the hook moves to the full \texttt{ResidualAttentionBlock} output — pre-LN normalisation
-erases norm differences before the value projection. \textit{Evaluation metric:} qualitative assessment of the three LOST intermediate maps.\\
-\textbf{Norm distributions (Figure~\ref{fig:token_norms_dinov2}).} A hook on \texttt{model.norm} captures
-\texttt{inputs[0]} (pre-LayerNorm), not \texttt{output} — post-LN activations destroy the bimodal signal.
-L2 token norms are split by type (CLS at 0, registers at 1--4, patches at 5--end) and plotted as strip plots
-over 500 COCO images. \textit{Evaluation metric:} visual comparison of norm strip plots.\\
-\textbf{Information held by tokens (Tables~\ref{tab:outlier_token_probes}, ~\ref{tab:local_information_probes}).} A hook on
-\texttt{model.encoder.layer[-1]} (HuggingFace) captures post-LayerNorm features; the same block's
-pre-LN input is used for outlier detection. Three probes per token: logistic regression on FGVC-Aircraft
-(global), logistic regression on a $7{\times}7$ position grid (local), and Ridge regression to raw pixels
-(reconstruction). All features standardised before training.
-\textit{Evaluation metric:} top-1 accuracy on FGVC-Aircraft; top-1 position prediction over 49 classes; mean L2 pixel reconstruction error.\\
-\textbf{Positional focus (Figure~\ref{fig:positional_focus}).} \texttt{fused\_attn=False} forces materialisation
-of the softmax matrix. A hook on \texttt{model.blocks[-1].attn.attn\_drop} captures the
-$(B,H,N,N)$ tensor; rows for CLS (0), registers (1--4), and centre patch (5+685) are averaged across
-$H{=}16$ heads over 500 Oxford-IIIT Pet images and reshaped to $37{\times}37$.
-\textit{Evaluation metric:} visual comparison of attention heatmaps.
+
+\textbf{Object discovery (Table~\ref{tab:object_discovery}).} We evaluate whether registers improve unsupervised
+object localisation by running LOST on six model configurations across three datasets. A hook on
+\texttt{model.blocks[-1].attn.qkv} (timm) or \texttt{resblocks[-1].attn} (OpenCLIP) captures the QKV
+output; keys or values are separated by reshaping the $(B,N,3C)$ tensor and stripping special tokens by
+index. Patch features pass through: L2 normalise $\to$ $G{=}\hat{K}\hat{K}^\top{+}b$, subtract per-row
+mean $\to$ binarise at $\tau{=}0$ $\to$ degree computation $\to$ $\arg\min$ seed $\to$ seed expansion.
+The tightest box is scored against GT; correct if $\max\,\text{IoU}{\geq}0.5$. Inference in FP16 on GPU
+(batch~32); LOST per-image on CPU in float32. \textit{Metric: CorLoc:}— \% images with IoU(predicted box, best GT box) $\geq$ 0.5.\\
+\textbf{Qualitative attention maps (Figure~\ref{fig:qualitative_attention}).} We visualise what CLS and register tokens
+attend to, to verify that registers develop distinct spatial attention patterns. A hook on
+\texttt{model.blocks[-1].attn} recomputes $\text{softmax}(QK^\top/\sqrt{d})$; the $(B,H,N,N)$ matrix
+is averaged across heads and rows for CLS and each register are reshaped to $37{\times}37$ grids.
+\textit{Metric: qualitative visual assessment.}\\
+\textbf{LOST intermediate maps (Figures~\ref{fig:lost_intermediate_steps}, ~\ref{fig:seed_expansion_openclip}).} We inspect the three
+intermediate LOST outputs on a single image to understand how registers affect each stage of the algorithm.
+Same hook and pipeline as above; three maps are retained: inverse-degree, seed similarity row, and binary
+expansion mask. For OpenCLIP values, the hook moves to the full \texttt{ResidualAttentionBlock} output —
+pre-LN normalisation erases norm differences before the value projection.
+\textit{Metric: qualitative assessment of intermediate maps.}\\
+\textbf{Norm distributions (Figure~\ref{fig:token_norms_dinov2}).} We measure pre-LayerNorm token norms to verify
+that registers absorb the high-norm outlier patches present in models without registers. A hook on
+\texttt{model.norm} captures \texttt{inputs[0]} (pre-LN), not \texttt{output} — post-LN activations
+destroy the bimodal signal. Token norms are split by type (CLS at 0, registers at 1--4, patches at 5--end)
+and plotted as strip plots over 500 COCO images. \textit{Metric: visual comparison of norm distributions.}\\
+\textbf{Information held by tokens (Tables~\ref{tab:outlier_token_probes}, ~\ref{tab:local_information_probes}).} We probe individual tokens
+to quantify how much global and local information outlier patches and registers hold relative to normal
+patches. A hook on \texttt{model.encoder.layer[-1]} (HuggingFace) captures post-LN features; the same
+block's pre-LN input is used for outlier detection. Three probes per token: logistic regression on
+FGVC-Aircraft (global), logistic regression on a $7{\times}7$ position grid (local), and Ridge regression
+to raw pixels (reconstruction). \textit{Metric: top-1 accuracy; top-1 position prediction; mean L2 error.}\\
+\textbf{Positional focus (Figure~\ref{fig:positional_focus}).} We visualise average attention patterns of CLS,
+registers, and a centre patch to verify that registers adopt a global focus while patch tokens remain local.
+\texttt{fused\_attn=False} forces softmax matrix materialisation; a hook on
+\texttt{model.blocks[-1].attn.attn\_drop} captures the $(B,H,N,N)$ tensor. Rows for CLS (0),
+registers (1--4), and centre patch (5+685) are averaged across $H{=}16$ heads over 500 Oxford-IIIT Pet
+images and reshaped to $37{\times}37$. \textit{Metric: visual comparison of attention heatmaps.}
 
 \subsubsection{Computational requirements}
 \textbf{Hardware:} Single NVIDIA GPU (31.74 GiB VRAM) and single/double T4 (15.5 GiB each) on Kaggle. CPU work on MacBook Pro M3 Pro.
