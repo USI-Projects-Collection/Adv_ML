@@ -1,4 +1,42 @@
 
+\begin{table}[htbp]
+    \centering
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{@{}c@{\hspace{1.5em}}c@{}}
+        \begin{tabular}[b]{lccc}
+        \toprule
+        & \textbf{ImageNet} & \textbf{ADE20k} & \textbf{NYUd} \\
+        \textbf{Model} & \textbf{Top-1} & \textbf{mIoU} & \textbf{RMSE} $\downarrow$ \\
+        \midrule
+        DeiT-III ViT-B/16            & \textbf{96.67} & 12.89 & 3.059 m \\
+        DeiT-III +reg4 (injected)    & 96.00 & \textbf{13.27} & \textbf{3.036 m} \\
+        \midrule
+        OpenCLIP ViT-B/16            & 90.67 & 12.16 & 1.746 m \\
+        OpenCLIP +tt-reg4 (Jiang)    & 90.67 & \textbf{12.36} & \textbf{1.550 m} \\
+        \midrule
+        DINOv2 ViT-L/14              & 94.00 & 18.70 & 1.974 m \\
+        DINOv2 ViT-L/14 +reg4        & \textbf{94.67} & \textbf{19.19} & \textbf{1.199 m} \\
+        \bottomrule
+        \end{tabular}
+        &
+        \begin{tabular}[b]{lc}
+        \toprule
+        & \textbf{ImageNet} \\
+        \textbf{Model} & \textbf{Top-1} \\
+        \midrule
+        OpenCLIP ViT-B/16         & \textbf{94.00} \\
+        OpenCLIP +tt-reg4 (Jiang) & 93.33 \\
+        \bottomrule
+        \end{tabular}
+        \\[2pt]
+        \footnotesize (a) Linear evaluation with frozen features.
+        &
+        \footnotesize (b) Zero-shot classification.
+    \end{tabular}}
+    \caption{Reproduction of Table~2 from \citet{darcet2024vision}: (a) linear probes on frozen features; (b) OpenCLIP zero-shot Top-1 with the 11-prompt ensemble. Model checkpoints in Table~\ref{tab:models}, dataset details in Table~\ref{tab:datasets}.}
+    \label{tab:t2ab}
+\end{table}
+
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\linewidth]{../../src/Paolo/results/figure8_top/figure8_top.png}\\[2pt]
@@ -33,6 +71,36 @@ $N$ & Top-1 & mIoU & RMSE & Top-1 & mIoU & RMSE \\
 4  & 95.33 & 19.03 & 0.93 m & 95.33 & 18.53 & 1.69 m \\
 8  & 95.33 & \textbf{19.98} & 1.49 m & 95.33 & 19.26 & 2.03 m \\
 16 & 92.00 & 18.83 & 2.95 m & 92.67 & 19.17 & 3.88 m \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Rounded wall-clock estimates of the compute consumed by the 3.2 experiments on an Apple~M3 chip via the PyTorch MPS backend. Per-operation rows are end-to-end averages over our subset sizes (500 images for feature extraction, 350 for head training, 100 for register-neuron identification). Per-experiment rows aggregate the constituent operations.}
+\label{tab:timings}
+\begin{tabular}{lr}
+\toprule
+\textbf{Operation} & \textbf{Time} \\
+\midrule
+Feature extraction on 500 images, DINOv2 ViT-L/14 ($518{\times}518$)         & $\sim$15 min \\
+Feature extraction on 500 images, OpenCLIP / DeiT-III ViT-B/16 ($224{\times}224$) & $\sim$4 min \\
+Classification head (LogisticRegression on CLS) training                     & $<1$ min \\
+Segmentation head ($1{\times}1$ \texttt{Conv2d}, 30 epochs) training         & $\sim$15 min \\
+Depth head ($1{\times}1$ \texttt{Conv2d}, 30 epochs) training                & $\sim$15 min \\
+FindRegisterNeurons (Jiang Algorithm~1) on 100 ImageNet training images       & $\sim$5 min \\
+Single-image inference, DINOv2 ViT-L/14                                       & $\sim$1--2 s \\
+Single-image inference, OpenCLIP / DeiT-III ViT-B/16                          & $\sim$0.3 s \\
+\midrule
+\textbf{Top-level experiment} & \textbf{Time} \\
+\midrule
+Table~2a: 6 backbone-variant combinations $\times$ 3 probes                   & $\sim$3 h \\
+Table~2b: zero-shot OpenCLIP $\times$ 2 variants                              & $\sim$10 min \\
+Figure~8 sweep, truncate/cycle on DINOv2-reg4 (6 $N$ $\times$ 3 probes)       & $\sim$3--4 h \\
+Figure~8 sweep, Jiang test-time registers on DINOv2 (6 $N$ $\times$ 3 probes) & $\sim$3--4 h \\
+Figure~8 sweep, independent variant on DINOv2 (6 $N$ $\times$ 3 probes)       & $\sim$3--4 h \\
+\midrule
+\textbf{Total wall-clock for 3.2}                                            & \textbf{$\sim$12--14 h} \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -3,52 +3,7 @@
 
 \subsubsection{Results reproducing original paper}
 
-\subsubsubsection{Table 2 -- Linear and zero-shot evaluation with frozen features}
-
-Table~\ref{tab:t2ab} reports the three linear probes (Top-1 / mIoU / RMSE) for each backbone with and without registers (left), and the OpenCLIP zero-shot Top-1 (right).
-
-\begin{minipage}{\linewidth}
-    \centering
-    \resizebox{\linewidth}{!}{%
-    \begin{tabular}{@{}c@{\hspace{1.5em}}c@{}}
-        \begin{tabular}[b]{lccc}
-        \toprule
-        & \textbf{ImageNet} & \textbf{ADE20k} & \textbf{NYUd} \\
-        \textbf{Model} & \textbf{Top-1} & \textbf{mIoU} & \textbf{RMSE} $\downarrow$ \\
-        \midrule
-        DeiT-III ViT-B/16            & \textbf{96.67} & 12.89 & 3.059 m \\
-        DeiT-III +reg4 (injected)    & 96.00 & \textbf{13.27} & \textbf{3.036 m} \\
-        \midrule
-        OpenCLIP ViT-B/16            & 90.67 & 12.16 & 1.746 m \\
-        OpenCLIP +tt-reg4 (Jiang)    & 90.67 & \textbf{12.36} & \textbf{1.550 m} \\
-        \midrule
-        DINOv2 ViT-L/14              & 94.00 & 18.70 & 1.974 m \\
-        DINOv2 ViT-L/14 +reg4        & \textbf{94.67} & \textbf{19.19} & \textbf{1.199 m} \\
-        \bottomrule
-        \end{tabular}
-        &
-        \begin{tabular}[b]{lc}
-        \toprule
-        & \textbf{ImageNet} \\
-        \textbf{Model} & \textbf{Top-1} \\
-        \midrule
-        OpenCLIP ViT-B/16         & \textbf{94.00} \\
-        OpenCLIP +tt-reg4 (Jiang) & 93.33 \\
-        \bottomrule
-        \end{tabular}
-        \\[2pt]
-        \footnotesize (a) Linear evaluation with frozen features.
-        &
-        \footnotesize (b) Zero-shot classification.
-    \end{tabular}}
-    \par\vspace{4pt}
-    \captionsetup{position=below}
-    \captionof{table}{Reproduction of Table~2 from \citet{darcet2024vision}: (a) linear probes on frozen features; (b) OpenCLIP zero-shot Top-1 with the 11-prompt ensemble. Model checkpoints in Table~\ref{tab:models}, dataset details in Table~\ref{tab:datasets}.}
-    \label{tab:t2ab}
-\end{minipage}
-
-\vspace{4pt}
-The DINOv2 row is the cleanest comparison (both checkpoints from the original paper) and reproduces the central claim: trained registers improve all three probes ($+0.67$~pt Top-1, $+0.49$~pt mIoU, $-0.775$~m RMSE, i.e.\ a $39\%$ relative reduction). OpenCLIP with test-time registers shows no Top-1 change and small dense-prediction gains, consistent with \citet{jiang2025vision}; the $-0.67$~pt zero-shot drop (one misclassified image on 150) is within subset variance. DeiT-III with injected \emph{untrained} register-token parameters regresses $-0.67$~pt on Top-1 but still improves mIoU and RMSE, suggesting that even random register slots act as a partial sink for high-norm outliers -- evidence in favour of the paper's mechanistic interpretation that registers' role is to absorb artifact tokens rather than to carry trained information.
+The reproduced linear evaluation and zero-shot results are reported in Table~\ref{tab:t2ab} (appendix). The DINOv2 row is the cleanest comparison (both checkpoints from the original paper) and reproduces the central claim: trained registers improve all three probes ($+0.67$~pt Top-1, $+0.49$~pt mIoU, $-0.775$~m RMSE, i.e.\ a $39\%$ relative reduction -- the magnitude is amplified by the variance of our 150-image NYUd val set, but the sign agrees with the paper). OpenCLIP with test-time registers shows no Top-1 change and small dense-prediction gains, consistent with \citet{jiang2025vision}; the $-0.67$~pt zero-shot drop (one misclassified image on 150) is within subset variance. DeiT-III with injected \emph{untrained} register-token parameters regresses $-0.67$~pt on Top-1 but still improves mIoU and RMSE, suggesting that even random register slots act as a partial sink for high-norm outliers -- evidence in favour of the paper's mechanistic interpretation that registers' role is to absorb artifact tokens rather than to carry trained information.
 
 \subsubsubsection{Figure 8 -- Attention maps and linear evaluation vs.\ number of registers}
 

@@ -136,9 +136,11 @@ _minted*/
 *.pdf
 src/Poli/README.md
 
-# codex files 
+# codex files
 AGENT.md
 PLAN.md
+
+src/Paolo/PRESENTATION_NOTES.md
 
 # logs and results folder
 logs/
