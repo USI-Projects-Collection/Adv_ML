@@ -15,11 +15,11 @@ The most important hyperparameter across these experiments is the minimum norm v
 
 \textbf{Visualization of attention maps (Paper Figure 2)}. We run 6 ViT models on 4 images sampled from \texttt{Caltech101} and visualize the attention map from the last self-attention layer from each model. 
 
-\textbf{DINO vs DINOv2 local feature norms (Paper Figure 3)}. We compare the local features norms distribution for \texttt{DINO ViT-B/16} and \texttt{DINOv2 ViT-g/14} both on a single image and on a batch of 1000 images sampled from \texttt{Caltech101}.
+\textbf{DINO vs DINOv2 local feature norms (Paper Figure 3)}. We compare the local features norms distribution for \texttt{DINO ViT-B/16} and \texttt{DINOv2 ViT-g/14} both on a single image and on a batch of 1000 images sampled from \texttt{Caltech101}. More precisely, for each image, we extract the last encoder hidden state before the final LayerNorm, which suppresses norm differences. 
 
 \textbf{Local properties of outlier patches (Paper Figure 5)}. We compare the distribution of cosine similarity between input patches embeddings and their 4 neighbors for both normal patches and outlier patches. In addition we perform linear probing for local information on both normal and outlier patches by training:
 namely (i) a linear classifier for patch-position prediction and (ii) a linear regressor for patch-pixel reconstruction.
-Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and outlier patches are both present in the training split while we test them separately on evaluation. We report the hyperparameter of the 2 linear models: 
+Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and outlier patches are both present in the training split while we test them separately on evaluation. We report the hyperparameters of the 2 linear models that lead to stable training: 
 \begin{table}[h]
     \centering
     \label{tab:figure5b-hparams}

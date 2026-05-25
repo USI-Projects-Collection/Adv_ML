@@ -141,7 +141,7 @@ codex/
 
 # logs and results folder
 logs/
-
+src/Kun/results
 src/Kun/README.md
 
 # presentation notes
