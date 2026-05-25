@@ -1,9 +1,9 @@
 \subsection{Methodology}
 
-This reproduction is implemented through original codebase that follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible otherwise is done through direct download from the dataset official website.
+This reproduction is implemented through an original codebase that follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible; otherwise, datasets are downloaded directly from their official websites.
 
 \subsubsection{Model descriptions}
-All 4 experiments are conducted using ViT models without register as features extractor. Experiment 1 is run with \texttt{DeiT-III-B}, \texttt{DeiT-III ViT-B/16}, \texttt{DeiT-III ViT-L/16}, \texttt{OpenCLIP ViT-B/16}, \texttt{OpenCLIP ViT-L/14}, \texttt{DINO ViT-B/16}, and \texttt{DINOv2 ViT-g/14}. Experiment 2,3,4 employ \texttt{DINOv2 ViT-g/14} and \texttt{DINO ViT-B/16} models only. Model details are in table \ref{tab:models}
+All 4 experiments are conducted using ViT models without registers as feature extractors. Experiment 1 is run with \texttt{DeiT-III ViT-B/16}, \texttt{DeiT-III ViT-L/16}, \texttt{OpenCLIP ViT-B/16}, \texttt{OpenCLIP ViT-L/14}, \texttt{DINO ViT-B/16}, and \texttt{DINOv2 ViT-g/14}. Experiment 2,3,4 employ \texttt{DINOv2 ViT-g/14} and \texttt{DINO ViT-B/16} models only. Model details are in table \ref{tab:models}
 
 \subsubsection{Datasets}
 Datasets used in the following 4 experiments are \texttt{cifar10}, \texttt{cifar100}, \texttt{caltech101}, \texttt{dtd}, \texttt{aircraft}, \texttt{flowers102}, \texttt{food101}, and \texttt{pets}. See table \ref{tab:datasets} for details. 
@@ -37,11 +37,10 @@ Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and o
 The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
 \textbf{Global properties of outlier patches (Paper Table 1)}
-We compare the class predictive capacity of different patch tokens: for each image we extract three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. We then trains three separate multinomial logistic regression classifiers, one per representation type. Among the 14 datasets chosen in the paper we pick 8 that are easier to download and store locally. We fit the logistic model on these 8 datasets.
-For each dataset we sample 500 images for training and 200 images for evaluation. If a certain image doesn't contain any outlier patch (norma > 150) we pick the the patch with the highest norm as outlier. The model used as features extractor is \texttt{DINOv2 ViT-g/14}
+We compare the class predictive capacity of different patch tokens: for each image we extract three candidate representations: the \texttt{[CLS]} token, one normal patch token, and one outlier patch token. We then train three separate multinomial logistic regression classifiers, one per representation type. Among the 14 datasets used in the paper, we select 8 that are easier to download and store locally. For each dataset we sample 500 images for training and 200 images for evaluation. If a given image does not contain any outlier patch (norm > 150), we select the patch with the highest norm as the outlier. The model used as features extractor is \texttt{DINOv2 ViT-g/14}
 
 
 \subsubsection{Computational requirements}
-The experiments executed locally on an Apple M4 Pro machine with 24\,GB unified memory. The mps backend is used whenever is possible; when some torch implementation are known to be unstable we fall back to cpu.
-For experiment 1 the runtime is neglectable, for experiment 2 is $\approx 20 min$, for experiment 3 $\approx 15 min$, for experiment 4 $\approx 1h $.  
+The experiments were executed locally on an Apple M4 Pro machine with 24\,GB of unified memory. The MPS backend is used whenever possible; when some PyTorch implementations are known to be unstable, we fall back to the CPU.
+The runtime is negligible for Experiment 1, approximately 20 minutes for Experiment 2, approximately 15 minutes for Experiment 3, and approximately 1 hour for Experiment 4.
 

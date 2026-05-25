@@ -1,18 +1,18 @@
 \subsection{Results}
 \label{sec:results}
-The 4 experiments are intended to verify 4 qualitative claims of the original paper in relation to the main characteristic and information stored inside outlier patches tokens representation. 
+The 4 experiments are intended to verify 4 qualitative claims of the original paper regarding the main characteristics of outlier tokens and the information they store.
 
 \subsubsection{Results reproducing original paper}
 
 \textbf{Claim 1: all models but DINO exhibit peaky outlier values
-in the attention maps.} Our attention maps reproduce faithfully those in the paper where all models but DINO exhibit peaky outlier values (see \ref{fig:outlier_maps})
+in the attention maps.} Our attention maps faithfully reproduce those in the paper, where all models except DINO exhibit peaky outlier values (see \ref{fig:outlier_maps})
 
-\textbf{Claim 2: DINOv2 has a few outlier patches, whereas DINO does not present these artifacts.}. Across 1000 images our experiment confirms that DINO does not present outlier patches whereas DINOv2 has them. The norm distribution of features extracted by DINO and DINOv2 resembles the distribution presented in the paper (see \ref{fig:dino_vs_dinov2})
+\textbf{Claim 2: DINOv2 has a few outlier patches, whereas DINO does not present these artifacts.} Across 1000 images our experiment confirms that DINO does not present outlier patches whereas DINOv2 has them. The norm distribution of features extracted by DINO and DINOv2 resembles the distribution presented in the paper (see \ref{fig:dino_vs_dinov2})
 
-\textbf{Claim 3: high-norm tokens appear where patch information is redundant and hold little local information}. Our experiment confirms that high norm tokens appears on patches that are very similar to their neighbors (see histogram in fig \ref{fig:neighbor_cosine}). Local probe results show that these high norm tokens hold little local information compared to normal norm tokens (see table in fig \ref{fig:neighbor_cosine}) since they achieve lower scores both in patch position prediction and patch reconstruction. 
+\textbf{Claim 3: high-norm tokens appear where patch information is redundant and hold little local information}. Our experiment confirms that high-norm tokens appear on patches that are very similar to their neighbors (see histogram in fig \ref{fig:neighbor_cosine}). Local probe results show that these high-norm tokens hold little local information compared to normal tokens (see table in fig \ref{fig:neighbor_cosine}) since they achieve lower scores both in patch position prediction and patch reconstruction. 
 
 \textbf{Claim 4: high-norm tokens hold global information}
-Our experiment confirms that outlier tokens have higher accuracy on global class prediction, compared to normal tokens, across the 8 datasets that we tasted. They contains more global information about the global image. (see table \ref{tab:global-probes}). 
+Our experiment confirms that outlier tokens have higher accuracy on global class prediction, compared to normal tokens, across the 8 datasets that we tested. They contain more global information about the global image. (see table \ref{tab:global-probes}). 
 
 \begin{table}[h]
     \centering
