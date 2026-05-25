@@ -19,7 +19,7 @@ The most important hyperparameter across these experiments is the minimum norm v
 
 \textbf{Local properties of outlier patches (Paper Figure 5)}. We compare the distribution of cosine similarity between input patches embeddings and their 4 neighbors for both normal patches and outlier patches. In addition we perform linear probing for local information on both normal and outlier patches by training:
 namely (i) a linear classifier for patch-position prediction and (ii) a linear regressor for patch-pixel reconstruction.
-Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and outlier patches are both present in the training split while we test them separately on evaluation. We report the hyperparameters of the 2 linear models that lead to stable training: 
+Probings are done with 500 images sampled from \texttt{Caltech101}. Normal and outlier patches are both present in the training split while we test them separately on evaluation. We report the hyperparameters of the 2 linear models chosen for stable training: 
 \begin{table}[h]
     \centering
     \label{tab:figure5b-hparams}
@@ -41,6 +41,6 @@ We compare the class predictive capacity of different patch tokens: for each ima
 
 
 \subsubsection{Computational requirements}
-The experiments were executed locally on an Apple M4 Pro machine with 24\,GB of unified memory. The MPS backend is used whenever possible; when some PyTorch implementations are known to be unstable, we fall back to the CPU.
+The experiments were executed locally on an Apple M4 Pro machine with 24\,GB of unified memory. We used the CPU backend since some PyTorch implementations are known to be unstable on MPS backend. 
 The runtime is negligible for Experiment 1, approximately 20 minutes for Experiment 2, approximately 15 minutes for Experiment 3, and approximately 1 hour for Experiment 4.
 
