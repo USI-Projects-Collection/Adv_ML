@@ -4,26 +4,34 @@ Test-time registers — independent variant.
 Variante originale (non descritta nel paper Jiang) del metodo test-time
 registers: invece di copiare lo stesso valore max(|act|) su tutti gli N TT
 register tokens (convenzione Jiang, vedi `activate_on_registers` nel loro
-`shared/hook_fn.py`), prendiamo le **top-N posizioni patch più attive** per
-ogni register neuron e ne copiamo il valore signed sul TT register
-corrispondente: TT_REG_0 riceve il valore della top-1 outlier patch,
-TT_REG_1 della top-2, ecc.
+`shared/hook_fn.py`), prendiamo le posizioni patch più attive per ogni
+register neuron, **filtriamo per quelle che superano la soglia outlier**, e
+copiamo il valore signed sui TT register corrispondenti.
+
+Regola di scrittura:
+  - Per ogni register neuron, si ordinano le patch per |attivazione|.
+  - Si scrivono sui TT register **solo** le posizioni con
+    |attivazione| > `OUTLIER_THRESHOLD` (default 150, lo stesso valore che
+    Jiang usa come soglia per la norm dei patch outlier).
+  - Se ci sono meno outlier veri di N register, i register rimanenti
+    restano a zero (non vengono forzati con valori non-outlier).
+  - Se ci sono più di N outlier veri, scriviamo solo i top-N (capping).
 
 **Importante: come in Jiang, azzeriamo TUTTI i patch token per i register
-neurons** (non solo le top-N posizioni). La variante riguarda solo *cosa
-scrivi nei TT register*, non quante patch azzeri. Se azzerassi solo le top-N,
-gli outlier residui resterebbero sui patch token e dominerebbero la
-self-attention, peggiorando le mappe invece di ripulirle. (Vedi prima
-versione buggata di questo file: causava crollo di tutte le metriche per
-N piccoli — bug corretto.)
+neurons** (non solo le posizioni filtrate). La variante riguarda solo *cosa
+scrivi nei TT register*, non quante patch azzeri. Se azzerassi solo le
+posizioni filtrate, gli outlier residui resterebbero sui patch token e
+dominerebbero la self-attention.
 
 Motivazione: nel codice Jiang originale per N>1 i TT registers diventano N
-copie ridondanti dello stesso broadcast node; il CLS distribuisce l'attention
-su N token quasi identici diluendo il segnale globale.
+copie ridondanti dello stesso broadcast node; il CLS distribuisce
+l'attention su N token quasi identici diluendo il segnale globale.
 
 Ipotesi: assegnando un outlier *distinto* a ogni TT register otteniamo N
 broadcast node indipendenti, e questo potrebbe ridurre la diluizione
-dell'attention per N grandi.
+dell'attention per N grandi. Il filtro sulla soglia evita di scrivere
+nei register valori che non rappresentano veri outlier (cioè immagini con
+meno di N patch davvero anomale non subiscono "scraping the barrel").
 
 API: identica a `test_time_registers.py` —
   `load_dinov2_with_tt_registers_independent(N, neurons, ...) -> TTRegDINOv2Independent`.
@@ -47,15 +55,21 @@ from ablation.test_time_registers import (
 
 _TIMM_NAME = "vit_large_patch14_dinov2.lvd142m"
 
+# Soglia outlier (allineata al valore `register_norm_threshold = 150` di Jiang).
+# Applicata alla magnitudo dell'attivazione MLP sui register neurons: una patch
+# è considerata "vero outlier" su un dato neurone se |act| > OUTLIER_THRESHOLD.
+OUTLIER_THRESHOLD: float = 150.0
+
 
 class TTRegDINOv2Independent(RegisteredViT):
     """
     DINOv2-L/14 baseline with N **independent** test-time register tokens at
     the end of the sequence: [CLS, PATCH_0...PATCH_P, TT_REG_0...TT_REG_{N-1}].
 
-    Differenza dal modello Jiang originale: ogni TT_REG_r riceve il valore
-    della r-esima patch più attiva (top-(r+1)) per ogni register neuron, e le
-    top-N posizioni vengono azzerate (non solo la top-1).
+    Differenza dal modello Jiang originale: per ogni register neuron, i TT
+    register vengono scritti **solo** quando la magnitudo dell'attivazione
+    sulla patch supera `OUTLIER_THRESHOLD` (default 150). I register che non
+    ricevono un vero outlier restano a zero.
     """
 
     def __init__(self, *, num_registers: int, register_neurons, img_size: int, **kw):
@@ -71,7 +85,7 @@ class TTRegDINOv2Independent(RegisteredViT):
             patch_grid=(grid, grid),
             img_size=img_size,
             patch_size=patch_size,
-            name=f"DINOv2-L/14 +tt-reg{num_registers} (Jiang, indep)",
+            name=f"DINOv2-L/14 +tt-reg{num_registers} (indep, thr={OUTLIER_THRESHOLD:g})",
         )
         self.tt_registers = nn.Parameter(
             torch.zeros(1, num_registers, embed_dim), requires_grad=False
@@ -81,6 +95,9 @@ class TTRegDINOv2Independent(RegisteredViT):
             neurons_by_layer.setdefault(layer, []).append(neuron)
         self._neurons_by_layer = neurons_by_layer
         self._hook_handles = []
+        # Cache delle patch-norm al layer corrente (popolato dal pre-hook,
+        # consumato dal mlp.act hook nello stesso blocco).
+        self._current_patch_norms: torch.Tensor | None = None
         self._install_hooks()
 
     def _install_hooks(self):
@@ -94,7 +111,18 @@ class TTRegDINOv2Independent(RegisteredViT):
             neuron_idx = torch.tensor(neuron_list, dtype=torch.long)
             blk = self.backbone.blocks[layer]
 
-            def hook(_m, _inp, output, neuron_idx=neuron_idx, n_reg=n_reg):
+            # Pre-forward hook sul blocco: cattura ||x||_2 per ogni patch
+            # all'ingresso del blocco. Sarà usato dal mlp.act hook
+            # immediatamente successivo come criterio outlier.
+            def pre_hook(_m, inputs, n_reg=n_reg):
+                x = inputs[0]
+                num_prefix = self.backbone.num_prefix_tokens
+                P = x.shape[1] - num_prefix - n_reg
+                self._current_patch_norms = x[:, num_prefix : num_prefix + P, :].norm(dim=-1)
+
+            self._hook_handles.append(blk.register_forward_pre_hook(pre_hook))
+
+            def hook(_m, _inp, output, neuron_idx=neuron_idx, n_reg=n_reg, layer=layer):
                 # output: (B, N_total, 4096) post-GELU
                 num_prefix = self.backbone.num_prefix_tokens  # 1 (CLS only)
                 total = output.shape[1]
@@ -106,20 +134,45 @@ class TTRegDINOv2Independent(RegisteredViT):
                 sel = patch_slice[..., ndev]                              # (B, P, K)
                 abs_sel = sel.abs()
                 # Trova le top-N posizioni più "outlier" per ogni neurone.
-                topk_vals, topk_idx = abs_sel.topk(min(n_reg, P), dim=1)
+                topk_vals, topk_idx = abs_sel.topk(min(n_reg, P), dim=1)  # (B, n_reg, K)
                 # Recupera i valori signed in quelle posizioni.
-                signed_vals = sel.gather(1, topk_idx)                      # (B, n_reg, K)
+                signed_vals = sel.gather(1, topk_idx)                     # (B, n_reg, K)
 
-                # Scrivi gli N valori distinti sui N TT register slot
-                # (TT_REG_r riceve la r-esima patch più attiva).
-                actual_n = signed_vals.shape[1]
+                # Filtro outlier: gating sulla *patch norm* (norma L2 del
+                # residual stream all'ingresso del blocco), allineato alla
+                # definizione di outlier del paper Jiang (threshold = 150).
+                patch_norms = self._current_patch_norms                   # (B, P)
+                outlier_per_patch = patch_norms > OUTLIER_THRESHOLD       # (B, P)
+                # Espandi al numero di neuroni e gather sulle top-N posizioni.
+                K = ndev.shape[0]
+                outlier_3d = outlier_per_patch.unsqueeze(-1).expand(-1, -1, K)  # (B, P, K)
+                slot_is_outlier = outlier_3d.gather(1, topk_idx)          # (B, n_reg, K)
+                zeros = torch.zeros_like(signed_vals)
+                gated_vals = torch.where(slot_is_outlier, signed_vals, zeros)
+
+                # Diagnostica.
+                filled = int(slot_is_outlier.sum().item())
+                total_slots = n_reg * K * slot_is_outlier.shape[0]
+                pct = (100.0 * filled / total_slots) if total_slots else 0.0
+                pn_max = float(patch_norms.max().item())
+                pn_mean = float(patch_norms.mean().item())
+                n_outlier_patches = int(outlier_per_patch.sum().item())
+                P = patch_norms.shape[-1]
+                print(
+                    f"  [indep N={n_reg} layer={layer}] {K} neurons, "
+                    f"patch-norm max={pn_max:.1f}, mean={pn_mean:.1f}, "
+                    f"outlier patches > {int(OUTLIER_THRESHOLD)}: "
+                    f"{n_outlier_patches}/{P}, "
+                    f"slots filled = {filled}/{total_slots} ({pct:.0f}%)"
+                )
+
+                actual_n = gated_vals.shape[1]
                 for r in range(actual_n):
-                    output[:, -n_reg + r, ndev] = signed_vals[:, r, :]
+                    output[:, -n_reg + r, ndev] = gated_vals[:, r, :]
 
-                # FIX (rispetto al primo run): azzera *tutti* i patch token
-                # per quei neuroni (come Jiang originale), non solo le top-N
-                # posizioni. Altrimenti gli outlier residui restano attivi
-                # sui patch token e dominano la self-attention.
+                # Azzera *tutti* i patch token per quei neuroni (come Jiang
+                # originale): l'intervento di pulizia sui patch è
+                # indipendente dal filtro sulla writing policy.
                 output[:, num_prefix : num_prefix + P, ndev] = 0
                 return output
 
@@ -161,7 +214,7 @@ def load_dinov2_with_tt_registers_independent(
     *,
     img_size: int = 518,
 ) -> TTRegDINOv2Independent:
-    """Variante del modello TT-reg con top-N outlier distribuiti su N register distinti."""
+    """Variante TT-reg con outlier distinti gated dalla soglia OUTLIER_THRESHOLD."""
     return TTRegDINOv2Independent(
         num_registers=num_registers,
         register_neurons=register_neurons,
