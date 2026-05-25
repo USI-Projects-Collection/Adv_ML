@@ -56,23 +56,24 @@
 \end{figure}
 
 \begin{table}[htbp]
-\centering
-\caption{Figure~8 (bottom) numerical values for the two test-time register methods on DINOv2 ViT-L/14. Truncate/cycle values are reported in the main text.}
-\label{tab:f8}
-\begin{tabular}{ccccccc}
-\toprule
-& \multicolumn{3}{c}{\textbf{Jiang tt-reg}} & \multicolumn{3}{c}{\textbf{Independent variant}} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-$N$ & Top-1 & mIoU & RMSE & Top-1 & mIoU & RMSE \\
-\midrule
-0  & 94.00 & 19.99 & 2.04 m & 94.00 & 19.41 & 1.13 m \\
-1  & 95.33 & 19.99 & 1.09 m & 95.33 & 19.49 & 2.26 m \\
-2  & 95.33 & 19.87 & 1.20 m & 95.33 & 18.91 & 2.87 m \\
-4  & 95.33 & 19.03 & 0.93 m & 95.33 & 18.53 & 1.69 m \\
-8  & 95.33 & \textbf{19.98} & 1.49 m & 95.33 & 19.26 & 2.03 m \\
-16 & 92.00 & 18.83 & 2.95 m & 92.67 & 19.17 & 3.88 m \\
-\bottomrule
-\end{tabular}
+    \centering
+    \caption{Figure~8 (bottom) numerical values for all three Figure~8 methods on DINOv2 ViT-L/14. Truncate/cycle is applied to the released DINOv2-reg4 checkpoint; Jiang tt-reg and the independent variant are applied to the no-register DINOv2 baseline.}
+    \label{tab:f8}
+    \resizebox{0.8\linewidth}{!}{%
+    \begin{tabular}{cccccccccc}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Truncate/cycle}} & \multicolumn{3}{c}{\textbf{Jiang tt-reg}} & \multicolumn{3}{c}{\textbf{Independent variant}} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+    $N$ & Top-1 & mIoU & RMSE & Top-1 & mIoU & RMSE & Top-1 & mIoU & RMSE \\
+    \midrule
+    0  & 70.67 & 13.93 & 3.26 m & 94.00 & 19.99 & 2.04 m & 94.00 & 19.41 & 1.13 m \\
+    1  & 93.33 & 20.56 & 1.09 m & 95.33 & 19.99 & 1.09 m & 95.33 & 19.49 & 2.26 m \\
+    2  & 92.67 & 19.60 & 1.20 m & 95.33 & 19.87 & 1.20 m & 95.33 & 18.91 & 2.87 m \\
+    4  & 94.67 & 19.97 & 0.93 m & 95.33 & 19.03 & 0.93 m & 95.33 & 18.53 & 1.69 m \\
+    8  & 94.67 & 20.78 & 1.49 m & 95.33 & \textbf{19.98} & 1.49 m & 95.33 & 19.26 & 2.03 m \\
+    16 & \textbf{95.33} & 20.68 & \textbf{0.87 m} & 92.00 & 18.83 & 2.95 m & 92.67 & 19.17 & 3.88 m \\
+    \bottomrule
+    \end{tabular}}
 \end{table}
 
 \begin{table}[htbp]
