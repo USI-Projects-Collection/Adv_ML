@@ -7,7 +7,7 @@ Group project for the USI ATML course (2026). We reproduce the central claims of
 ```
 src/Kun/        # Section 2 — outlier characterisation (Figs. 2, 3, 5, Tab. 1)
 src/Paolo/      # Section 3.2 — linear evaluation + Figure 8 ablation (Tabs. 2a, 2b)
-src/Raffaele/   # Section 4 — feature quality + LOST object discovery
+src/Raffaele/   # Section 4 — LOST object discovery (Tab. 3, Fig. 9) + Analysis of LOST performance (Figs. 13, 14, 7) + Behavior of models with registers (Fig. 15, 16, Tabs. 4, 5)
 report/ATML_Report_2026/   # LaTeX report
 assets/         # shared figures from the paper
 ```
