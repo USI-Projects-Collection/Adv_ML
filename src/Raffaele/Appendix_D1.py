@@ -10,47 +10,12 @@ import open_clip
 import os
 import random
 
-# ==============================================================================
-# FIGURE 7 REPLICATION — Section 3.2
-# "Vision Transformers Need Registers" (Darcet et al., ICLR 2024)
-#
-# The figure shows strip/scatter plots of OUTPUT token L2 norms for three
-# model families (DINOv2 / OpenCLIP / DeiT-III), each compared w/o vs w/ reg.
-#
-# Layout (matching the paper exactly):
-#   - 3 panels, one per model family
-#   - Each panel: TWO adjacent narrow columns — "w/o reg" (left), "w/ reg" (right)
-#   - Each column has TWO x-positions: CLS and patch
-#     (the w/ reg column additionally shows individual register norms)
-#   - Each panel has its OWN independent y-axis (scales differ across families)
-#   - No shared y-axis — DINOv2 ~200, OpenCLIP ~300, DeiT-III ~1500
-#
-# ── CORRECT HOOK: post-LN output of model.norm / visual.ln_post ─────────────
-# The paper plots norms of the FINAL output tokens (after the last LayerNorm).
-# This is what "output token norms" means throughout Section 2 and Figure 3.
-#
-# The earlier confusion (inverted results for DINOv2) was caused by the
-# open_clip_hf crash masking the actual data — the post-LN hook IS correct.
-#
-# ── open_clip_hf special case ────────────────────────────────────────────────
-# The HF test-time registers model's ln_post receives (B*N, C) — already flat.
-# Fix: hook the last resblock OUTPUT instead, which is (N, B, C) sequence-first,
-# then transpose to (B, N, C). The norms are equivalent because LN is applied
-# elementwise and the resblock output is the direct input to ln_post.
-#
-# ── Token layout ─────────────────────────────────────────────────────────────
-#   timm no reg  → [CLS, p_0 … p_N]        at model.norm output
-#   timm k reg   → [CLS, r_0 … r_{k-1}, p_0 … p_N]
-#   open_clip    → [CLS, p_0 … p_N]        at visual.ln_post output
-#   open_clip_hf → [CLS, p_0 … p_N] or [CLS, r_0…r_k, p_0…p_N] from resblock
-# ==============================================================================
-
 N_IMAGES       = 200
 BATCH_SIZE     = 8
 MAX_PATCH_DOTS = 20_000
 
-IMAGE_DIR    = "./src/Raffo/data/coco/images/val2017"
-FALLBACK_IMG = "./src/Raffo/img/Black_Labrador_Retriever_portrait.jpg"
+IMAGE_DIR    = "./src/Raffaele/data/coco/images/val2017"
+FALLBACK_IMG = "./src/Raffaele/img/Black_Labrador_Retriever_portrait.jpg"
 
 
 # ==============================================================================
@@ -83,12 +48,9 @@ class OutputNormExtractor:
     Captures per-token L2 norms from the final output of each model.
 
     Hook targets:
-      timm        → model.norm          output: (B, N, C)  [post-LN]
-      open_clip   → model.visual.ln_post output: (B, N, C) [post-LN]  
-      open_clip_hf→ model.model.visual.transformer.resblocks[-1]
-                    output: (N, B, C) sequence-first → transposed to (B, N, C)
-                    (ln_post receives flat (B*N, C) in this wrapper, so we hook
-                     the last resblock output instead — equivalent norms)
+      timm        -> model.norm          output: (B, N, C)  [post-LN]
+      open_clip   -> model.visual.ln_post output: (B, N, C) [post-LN]  
+      open_clip_hf -> model.model.visual.transformer.resblocks[-1]
 
     Token layout after hook (all backends):
       no reg : [CLS, p_0 … p_{N-1}]
@@ -107,7 +69,6 @@ class OutputNormExtractor:
             hook_target = model.visual.ln_post
 
         elif backend == "open_clip_hf":
-            # ln_post gets (B*N, C) — flat. Hook last resblock instead.
             hook_target = model.model.visual.transformer.resblocks[-1]
 
         else:
@@ -120,7 +81,7 @@ class OutputNormExtractor:
 
         # open_clip resblocks are (N, B, C) — sequence first
         if x.ndim == 3 and x.shape[0] > x.shape[1]:
-            x = x.permute(1, 0, 2)   # → (B, N, C)
+            x = x.permute(1, 0, 2)
 
         self._data = x
 
@@ -171,20 +132,12 @@ def collect_single(model, extractor, image_path, img_size, device, backend) -> d
 
 
 # ==============================================================================
-# 4. PLOT  — matching the paper's style
+# 4. PLOT
 # ==============================================================================
 def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
-    """
-    Reproduces Figure 7 layout:
-      - 3 panels (one per model family), each with its own y-axis
-      - Each panel: 2 condition columns (w/o reg, w/ reg) placed side-by-side
-      - Within each column: CLS strip (left), patch strip (right)
-        + register strips between CLS and patch for the w/-reg column
-      - Dense jittered scatter, patch tokens subsampled for speed
-    """
     rng = np.random.default_rng(42)
 
-    # Panel config: (axes_title, key_noreg, key_reg, n_regs, color)
+    # Panel configs
     panels = [
         ("DINOv2",   "dinov2_noreg",   "dinov2_reg",   4, "#4472C4"),
         ("OpenCLIP", "openclip_noreg", "openclip_reg",  4, "#4472C4"),
@@ -210,12 +163,9 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
 
     for ax, (title, k_nr, k_r, n_regs, color) in zip(axes, panels):
         data_nr  = all_norms.get(k_nr)
-        data_reg = all_norms.get(k_r)   # may be None
+        data_reg = all_norms.get(k_r) 
 
-        # ── Build x-position layout ──────────────────────────────────────────
-        # w/o reg: CLS at x=0, patch at x=1
-        # gap between conditions: 0.5
-        # w/ reg: CLS at x=2, reg_0..reg_k at x=3..2+k, patch at x=3+k
+        # Build x-position layout 
         gap      = 0.5
         x_cls_nr = 0
         x_pat_nr = 1
@@ -223,12 +173,12 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
         x_regs   = [x_cls_r + 1 + i for i in range(n_regs)]
         x_pat_r  = x_cls_r + 1 + n_regs
 
-        # ── w/o reg strips ───────────────────────────────────────────────────
+        # w/o reg strips 
         if data_nr is not None:
             scatter_strip(ax, x_cls_nr, data_nr["cls"],   color, is_special=True)
             scatter_strip(ax, x_pat_nr, data_nr["patch"], color, is_special=False)
 
-        # ── w/ reg strips ────────────────────────────────────────────────────
+        # w/ reg strips 
         if data_reg is not None:
             scatter_strip(ax, x_cls_r, data_reg["cls"],   color, is_special=True)
             for i, xr in enumerate(x_regs):
@@ -237,7 +187,6 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
                     scatter_strip(ax, xr, data_reg[key], color, is_special=True)
             scatter_strip(ax, x_pat_r, data_reg["patch"], color, is_special=False)
         else:
-            # Shade the w/ reg half and add a note
             ax.axvspan(x_cls_r - 0.6, x_pat_r + 0.5,
                        alpha=0.06, color="gray", zorder=0)
             ax.text((x_cls_r + x_pat_r) / 2, 0.5, "No public\ncheckpoint",
@@ -245,7 +194,6 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
                     ha="center", va="bottom", fontsize=8,
                     color="#999999", style="italic")
 
-        # ── x-ticks ──────────────────────────────────────────────────────────
         tick_pos    = [x_cls_nr, x_pat_nr, x_cls_r] + x_regs + [x_pat_r]
         tick_labels = ["CLS", "patch", "CLS"] \
                     + [f"reg_{i}" for i in range(n_regs)] \
@@ -254,11 +202,11 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
         ax.set_xticklabels(tick_labels, fontsize=7, rotation=40, ha="right")
         ax.set_xlim(x_cls_nr - 0.7, x_pat_r + 0.6)
 
-        # ── Vertical divider ─────────────────────────────────────────────────
+        # Vertical divider 
         divider_x = (x_pat_nr + x_cls_r) / 2
         ax.axvline(divider_x, color="#BBBBBB", linewidth=0.8, linestyle="--")
 
-        # ── Condition labels at top of plot ───────────────────────────────────
+        # Condition labels at top of plot
         ax.text((x_cls_nr + x_pat_nr) / 2, 1.02, "w/o REG",
                 transform=ax.get_xaxis_transform(),
                 ha="center", fontsize=8, color="#777777")
@@ -266,8 +214,7 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
                 transform=ax.get_xaxis_transform(),
                 ha="center", fontsize=8, color="#4472C4", fontweight="bold")
 
-        # ── Per-panel y-axis (paper uses independent scales) ─────────────────
-        # Compute from the actual data of this panel only
+        # Per-panel y-axis
         panel_vals = []
         for nd in [data_nr, data_reg]:
             if nd is not None:
@@ -292,7 +239,7 @@ def plot_figure_7(all_norms: dict, save_path: str = "figure_7_replication.png"):
 
 
 # ==============================================================================
-# 5. MODEL CONFIGS  (key, family, model_id, pretrained, backend, n_regs, img_size)
+# 5. MODEL CONFIGS
 # ==============================================================================
 MODEL_CONFIGS = [
     ("dinov2_noreg",   "timm",        "vit_base_patch14_dinov2.lvd142m",               True,                "timm",        0, 518),
@@ -301,12 +248,6 @@ MODEL_CONFIGS = [
     ("openclip_reg",   "open_clip_hf","amildravid4292/clip-vitb16-test-time-registers", True,               "open_clip_hf", 4, 224),
     ("deit3_noreg",    "timm",        "deit3_base_patch16_224.fb_in22k_ft_in1k",       True,                "timm",        0, 224),
     ("deit3_reg",    "timm",        "vit_mediumd_patch16_reg4_gap_256.sbb_in12k_ft_in1k", True,                "timm",        4, 256),
-    # ("deit3_reg",      "timm",        [
-    #     "vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k",   # sbb v1 tag
-    #     "vit_base_patch16_reg4_gap_256.sbb2_in12k_ft_in1k",  # sbb v2 tag
-    #     "vit_mediumd_patch16_reg4_gap_256.sbb_in12k_ft_in1k",# medium fallback
-    #     "vit_mediumd_patch16_reg4_gap_256.sbb_in12k",         # pretrain-only fallback
-    # ]),
 ]
 
 
@@ -379,11 +320,10 @@ if __name__ == "__main__":
         for k in sorted(r for r in norms if r.startswith("reg_")):
             print(f"  {k}  : mean={norms[k].mean():.1f}  std={norms[k].std():.1f}")
 
-    # DeiT-III+reg has no public checkpoint — None triggers the placeholder
     if "deit3_reg" not in all_norms:
         all_norms["deit3_reg"] = None
 
-    save_path = "./src/Raffo/img/figure_7_replication.png"
+    save_path = "./src/Raffaele/img/figure_7_replication.png"
     plot_figure_7(all_norms, save_path=save_path)
 
     # ── Summary ───────────────────────────────────────────────────────────────

@@ -9,28 +9,6 @@ import timm
 import open_clip
 from transformers import AutoModel
 
-# ==============================================================================
-# APPENDIX C REPLICATION
-#
-# This script replicates two figures from Appendix C of
-# "Vision Transformers Need Registers" (Darcet et al., ICLR 2024):
-#
-#   Figure 13: Intermediate LOST computation stages for all three model
-#              families (DeiT-III, OpenCLIP, DINOv2) with and without
-#              registers. Rows = [LOST score, dot prod. w/ seed, seed expansion]
-#
-#   Figure 14: LOST seed expansion score for OpenCLIP with and without
-#              registers, broken down by feature type: keys, queries, values.
-#              The key finding is that VALUES suppress artifacts even without
-#              registers, while keys and queries do not.
-#
-# Design choices that match the paper:
-#   - DINOv2  → keys   (Sec. 3.3)
-#   - OpenCLIP/DeiT-III → values (Sec. 3.3)
-#   - Gram matrix bias: 0.0 for DINOv2-keys, 0.1 for OpenCLIP/DeiT-III-values
-#   - Seed expansion threshold: 0.0 (mean-centred gram, same as table_3_replication)
-# ==============================================================================
-
 # ==========================================
 # 1. FEATURE EXTRACTOR  (keys / queries / values)
 # ==========================================
@@ -38,11 +16,6 @@ class AttentionFeatureExtractor:
     """
     Extracts Q, K, or V features from the last attention layer.
     Supports timm (DINOv2/DeiT-III) and open_clip (OpenCLIP) backends.
-
-    Token layout at last attention input:
-      timm, no reg  : [CLS, patch_0 … patch_N]
-      timm, 4 reg   : [CLS, reg_0 … reg_3, patch_0 … patch_N]
-      open_clip     : [CLS, patch_0 … patch_N]
     """
 
     def __init__(self, model, feature_type: str, model_backend: str):
@@ -80,11 +53,8 @@ class AttentionFeatureExtractor:
             if self.feature_type == "values":
                 # For values: recompute the full attention-weighted output
                 # softmax(QK^T / sqrt(d)) @ V
-                # This is where the null-space effect lives: outlier patches
-                # receive near-zero attention weight after the softmax, so they
-                # vanish in the attended output even without registers.
                 def hook_attn_out(module, input, output):
-                    x = input[0]          # (B, N, C) — pre-LN input to attn
+                    x = input[0]
                     B, N, _ = x.shape
                     C_in      = module.in_proj_weight.shape[1]
                     num_heads = module.num_heads
@@ -94,15 +64,15 @@ class AttentionFeatureExtractor:
                     # Project to Q, K, V
                     qkv = F.linear(x, module.in_proj_weight, module.in_proj_bias)
                     qkv = qkv.reshape(B, N, 3, num_heads, head_dim)
-                    qkv = qkv.permute(2, 0, 3, 1, 4)  # (3, B, H, N, D)
-                    q, k, v = qkv[0], qkv[1], qkv[2]  # each (B, H, N, D)
+                    qkv = qkv.permute(2, 0, 3, 1, 4)
+                    q, k, v = qkv[0], qkv[1], qkv[2]
 
                     # Attention weights: softmax(QK^T / sqrt(d))
-                    attn = (q @ k.transpose(-2, -1)) * scale   # (B, H, N, N)
+                    attn = (q @ k.transpose(-2, -1)) * scale 
                     attn = attn.softmax(dim=-1)
 
                     # Attended output: softmax(QK^T) @ V → (B, H, N, D)
-                    out = (attn @ v)                            # (B, H, N, D)
+                    out = (attn @ v)
                     # Reshape to (B, N, C)
                     out = out.permute(0, 2, 1, 3).reshape(B, N, C_in)
                     self.features = out
@@ -130,6 +100,9 @@ class AttentionFeatureExtractor:
             raise NotImplementedError(f"Unknown backend: {self.model_backend}")
 
     def extract(self, x):
+        """
+        Runs a forward pass to trigger the hook and extract features.
+        """
         with torch.no_grad():
             if self.model_backend == "timm":
                 _ = self.model(x)
@@ -140,6 +113,9 @@ class AttentionFeatureExtractor:
         return self.features   # (B, N_total, C)
 
     def remove_hook(self):
+        """
+        Removes the forward hook to prevent side effects on future inferences.
+        """
         if self.hook_handle:
             self.hook_handle.remove()
 
@@ -152,6 +128,13 @@ def compute_similarity_matrix(features: torch.Tensor, bias: float = 0.0) -> torc
     Returns mean-centred cosine-similarity Gram matrix (N, N).
     Mean-centering makes threshold=0 meaningful: patches more similar than
     the average get positive values; distinctive patches get negative values.
+
+    @params
+        - features: (N, C) tensor of patch features.
+        - bias: small positive value to add to the Gram matrix to prevent zero entries
+
+    @returns
+        - gram: (N, N) mean-centred cosine similarity matrix.
     """
     features = F.normalize(features, p=2, dim=-1)
     gram = features @ features.T + bias
@@ -161,33 +144,36 @@ def compute_similarity_matrix(features: torch.Tensor, bias: float = 0.0) -> torc
 
 def lost_intermediate_stages(patch_features: torch.Tensor, bias: float = 0.0):
     """
-    Runs LOST and returns ALL three intermediate maps that Figure 13 shows:
-
+    Runs LOST and returns ALL three intermediate maps:
       1. lost_score      — inverse-degree map: value = 1 / (degree + 1e-6)
                            High = few similar neighbours = candidate foreground.
       2. dot_prod_seed   — raw similarity row of the selected seed patch.
       3. seed_expansion  — binary mask: patches above the threshold.
 
-    Returns:
-        lost_score      (N,)  float
-        dot_prod_seed   (N,)  float
-        seed_expansion  (N,)  float  (0/1)
-        seed_idx        int
+    @params
+        - patch_features: (N, C) tensor of patch features.
+        - bias: small positive value to add to the Gram matrix to prevent zero entries
+
+    @returns
+        - lost_score      (N,)  float
+        - dot_prod_seed   (N,)  float
+        - seed_expansion  (N,)  float  (0/1)
+        - seed_idx        int
     """
     gram = compute_similarity_matrix(patch_features, bias=bias)
 
     # --- Stage 1: LOST score (inverse degree) ---
     A = (gram > 0.0).float()
-    degrees = A.sum(dim=-1)                         # (N,)
-    # Invert so that "most isolated" = highest score (matches paper's Fig 13 row 1)
+    degrees = A.sum(dim=-1)                        
+    # Invert so that "most isolated" = highest score
     lost_score = 1.0 / (degrees + 1e-6)
 
     # --- Stage 2: seed selection ---
     seed_idx = int(torch.argmin(degrees).item())
-    dot_prod_seed = gram[seed_idx]                  # (N,)
+    dot_prod_seed = gram[seed_idx]                  
 
     # --- Stage 3: seed expansion ---
-    seed_expansion = (dot_prod_seed > 0.0).float()  # (N,)
+    seed_expansion = (dot_prod_seed > 0.0).float()  
 
     return (
         lost_score.cpu().numpy(),
@@ -215,18 +201,24 @@ def _resolve_timm_model(candidates: list[str]) -> str:
         f"None of the candidate timm models are available as pretrained "
         f"checkpoints in your timm version ({timm.__version__}):\n"
         + "\n".join(f"  - {n}" for n in candidates)
-        + "\nRun  timm.list_models('*reg*patch16*', pretrained=True)  "
-        "to find a valid alternative and add it to the candidates list."
     )
 
 
 def load_model(cfg: dict, device: torch.device):
-    """Loads a model and returns (model, model_backend, num_special_tokens)."""
+    """
+    Loads a model and returns (model, model_backend, num_special_tokens).
+
+    @params
+        - cfg: dictionary containing model configuration, including:
+
+    @returns
+        - model: the loaded PyTorch model, in eval mode and moved to the specified device.
+        - model_backend: string indicating the backend type ("timm", "open_clip", or "open_clip_hf").
+        - num_special_tokens: int, number of special tokens (CLS + registers) to skip when extracting patch features.
+    """
     source = cfg["source"]
 
     if source == "timm":
-        # Support an ordered list of candidate names so the script stays
-        # robust across timm versions (the pretrained tag changes between releases).
         model_name = cfg["model_name"]
         if isinstance(model_name, list):
             model_name = _resolve_timm_model(model_name)
@@ -258,7 +250,20 @@ def load_model(cfg: dict, device: torch.device):
 def get_patch_features(model, backend: str, num_special: int,
                        input_tensor: torch.Tensor,
                        feature_type: str, bias: float):
-    """Extract patch-only features for a given feature type."""
+    """
+    Extract patch-only features for a given feature type.
+    
+    @params
+        - model: the loaded PyTorch model.
+        - backend: string indicating the model backend ("timm", "open_clip", or "open_clip_hf").
+        - num_special: number of special tokens (CLS + registers) to skip when extracting patch features.
+        - input_tensor: preprocessed input image tensor of shape (1, 3, H, W).
+        - feature_type: string indicating which feature type to extract ("keys", "queries", or "values").
+        - bias: small positive value to add to the Gram matrix to prevent zero entries in LOST computations.
+
+    @returns
+        - patch_feats: the extracted patch features of shape (N_patches, C).
+    """
     extractor = AttentionFeatureExtractor(model, feature_type, backend)
     feats = extractor.extract(input_tensor)[0]     # (N_total, C)
     extractor.remove_hook()
@@ -279,21 +284,19 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
     print(f"\n[Figure 13] Using device: {device}")
 
     # ---- Model configs ----
-    # NOTE: The paper used its OWN retrained DeiT-III with/without registers.
-    # We approximate DeiT-III here with the publicly available timm checkpoint.
     configs = [
-        # DeiT-III (label-supervised)
+        # DeiT-III
         {
             "label": "DeiT-III\nw/o REG",
             "source": "timm",
-            # Priority-ordered list — first available checkpoint wins.
+            # Priority-ordered list
             "model_name": [
                 "deit3_base_patch16_224.fb_in22k_ft_in1k",
                 "deit3_base_patch16_224.fb_in1k",
                 "deit3_base_patch16_384.fb_in22k_ft_in1k",
             ],
             "pretrained": True,
-            "type": "values",    # paper: values for DeiT/OpenCLIP
+            "type": "values",
             "bias": 0.1,
             "img_size": 224,
             "patch_size": 16,
@@ -302,24 +305,11 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
         {
             "label": "ViT-B/16\nw/ REG\n(proxy)",
             "source": "timm",
-            # ----------------------------------------------------------------
-            # NOTE ON DeiT-III+reg:
-            # The paper trained its own DeiT-III+reg model and never released
-            # the checkpoint publicly. No timm pretrained DeiT-III+reg exists.
-            #
-            # We use the best available PUBLIC timm ViT-B/16+reg4 checkpoint
-            # as a proxy so that the "with registers" column is meaningful.
-            # The model_name field is a priority-ordered list: the first name
-            # found in your installed timm version will be used automatically.
-            # ----------------------------------------------------------------
             "model_name": [
-                # EVA-02 ViT-B with 4 registers — same patch size, same reg count
-                # "eva02_base_patch16_clip_224.merged2b",
-                # Generic ViT-B with registers from SBB training
                 "vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k",
                 "vit_base_patch16_reg8_gap_256.sbb2_in12k_ft_in1k",
                 "vit_base_patch16_reg4_gap_256.sbb2_in12k_ft_in1k",
-                # Fall back to DINOv2-B with registers (different patch size but same mechanism)
+                # Fall back to DINOv2-B with registers
                 "vit_base_patch14_reg4_dinov2.lvd142m",
             ],
             "pretrained": True,
@@ -329,7 +319,7 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             "patch_size": 16,
             "regs": 4,
         },
-        # OpenCLIP (text-supervised)
+        # OpenCLIP
         {
             "label": "OpenCLIP\nw/o REG",
             "source": "open_clip",
@@ -352,13 +342,13 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             "patch_size": 16,
             "regs": "dynamic",
         },
-        # DINOv2 (self-supervised)
+        # DINOv2
         {
             "label": "DINOv2\nw/o REG",
             "source": "timm",
             "model_name": "vit_base_patch14_dinov2.lvd142m",
             "pretrained": True,
-            "type": "keys",   # paper: keys for DINOv2
+            "type": "keys",
             "bias": 0.0,
             "img_size": 518,
             "patch_size": 14,
@@ -382,23 +372,21 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
     row_labels = ["", "LOST\nscore", "Dot prod.\nw/ seed", "Seed\nexpansion"]
     cmaps = ["viridis", "viridis", "gray"]
 
-    # Collect results: list of (lost_score_map, dot_prod_map, seed_exp_map)
+    # Collect results
     all_results = []
     all_images  = []
 
     for cfg in configs:
         print(f"  Loading {cfg['label'].replace(chr(10), ' ')} ...")
         
-        # 1. Load the model FIRST
+        # 1. Load the model
         model, backend, num_special = load_model(cfg, device)
         
         # 2. Dynamically fetch required resolution to prevent crashes
         if backend == "timm":
-            # timm models store their required input size in default_cfg
             img_size = model.default_cfg['input_size'][1]
             patch_size = model.patch_embed.patch_size[0]
         else:
-            # OpenCLIP and HF use standard 224x224
             img_size = cfg["img_size"]
             patch_size = cfg["patch_size"]
             
@@ -456,15 +444,12 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             ax.imshow(maps[row_i], cmap=cmap, interpolation="nearest")
             ax.axis("off")
 
-    # --- Row labels via fig.text (works even when axes are off) ---
-    # Compute the vertical centre of each data row in figure coordinates.
-    # gs starts at bottom=0.02, top=0.92, with n_rows+1 equal rows.
+    # Row labels
     total_height = 0.92 - 0.02          # 0.90
     row_height   = total_height / (n_rows + 1)
 
     for row_i, row_label in enumerate(row_labels):
-        # row 0 is the image strip; data rows start at row_i+1
-        row_bottom = 0.02 + (n_rows - row_i) * row_height   # rows are top-to-bottom
+        row_bottom = 0.02 + (n_rows - row_i) * row_height
         y_centre   = row_bottom + row_height / 2
         fig.text(
             0.09, y_centre,          
@@ -472,7 +457,7 @@ def run_figure_13(image_path: str, save_path: str = "figure_13_replication.png")
             fontsize=9,
             fontweight="bold",       
             ha="center", va="center",
-            rotation=90,             # 90° = rotated left (bottom→top reading)
+            rotation=90,             
             multialignment="center",
         )
 
@@ -550,7 +535,7 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
     col_labels = ["Input", "Keys", "Queries", "Values"]
 
     n_rows      = 2
-    n_cols      = 4   # input + 3 feature types
+    n_cols      = 4
     fig, axes   = plt.subplots(n_rows, n_cols, figsize=(12, 6))
     fig.subplots_adjust(hspace=0.08, wspace=0.05, top=0.88, bottom=0.04,
                         left=0.12, right=0.99)
@@ -597,21 +582,7 @@ def run_figure_14(image_path: str, save_path: str = "figure_14_replication.png")
 # 6. MAIN
 # ==========================================
 if __name__ == "__main__":
-    # ----------------------------------------------------------------
-    # Update this path to point to your dog (or any other) image.
-    # Both figures use the same input image, matching the paper's style.
-    # ----------------------------------------------------------------
-    IMAGE_PATH = "./src/Raffo/img/Black_Labrador_Retriever_portrait.jpg"
+    IMAGE_PATH = "./src/Raffaele/img/Black_Labrador_Retriever_portrait.jpg"
 
-    print("=" * 60)
-    print("Appendix C Replication")
-    print("  Figure 13 — LOST intermediate steps (all 3 model families)")
-    print("  Figure 14 — OpenCLIP keys / queries / values comparison")
-    print("=" * 60)
-
-    # Figure 13: ~6 model loads, each forward pass on a single image.
-    # Expect ~2-5 min on CPU per model; use GPU for speed.
     run_figure_13(IMAGE_PATH, save_path="figure_13_replication.png")
-
-    # Figure 14: 2 model loads × 3 feature types = 6 extractions.
     run_figure_14(IMAGE_PATH, save_path="figure_14_replication.png")

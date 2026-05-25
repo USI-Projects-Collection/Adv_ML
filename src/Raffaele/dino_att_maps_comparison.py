@@ -19,7 +19,7 @@ class AttentionMapExtractor:
 
     def _register_hook(self):
         last_attn_layer = self.model.blocks[-1].attn
-        scale = last_attn_layer.scale # The 1 / sqrt(d) scaling factor
+        scale = last_attn_layer.scale
         
         def hook(module, input, output):
             x = input[0]
@@ -35,7 +35,7 @@ class AttentionMapExtractor:
             attn = (q @ k.transpose(-2, -1)) * scale
             attn = attn.softmax(dim=-1)
             
-            # Save the attention maps: shape [Batch, num_heads, Seq_len, Seq_len]
+            # Save the attention maps [Batch, num_heads, Seq_len, Seq_len]
             self.attention_maps = attn
 
         self.hook_handle = last_attn_layer.register_forward_hook(hook)
@@ -53,10 +53,13 @@ class AttentionMapExtractor:
 # 2. MAIN PIPELINE
 # ==========================================
 def run_attention_experiment():
+    """
+    This function runs the entire pipeline.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # 1. Load Local Image (Using the updated 518x518 resolution)
+    # 1. Load Local Image (518x518 resolution)
     url = "src/Raffo/img/Black_Labrador_Retriever_portrait.jpg"
     image = Image.open(url).convert("RGB")
     
@@ -104,7 +107,6 @@ def run_attention_experiment():
 
     for i, (m, t) in enumerate(zip(maps, titles)):
         axes[i+1].set_title(f"{t} Attention")
-        # 'magma' or 'inferno' perfectly matches the aesthetic of Figure 9
         axes[i+1].imshow(m, cmap='magma') 
         axes[i+1].axis('off')
 

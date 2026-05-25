@@ -1,108 +1,3 @@
-# BASE
-# =================================================================
-# TABLE 4 — Global information: Linear probing on Aircraft
-# =================================================================
-# #registers      [CLS]   normal   outlier   register
-# -----------------------------------------------------------------
-# 0                 83.9 (84.6)       17.6 (15.5)       38.6 (73.3)         N/A (N/A)
-# 4                 83.6 (85.2)       32.5 (14.5)         N/A (N/A)       78.4 (71.1)
-# -----------------------------------------------------------------
-# Columns: ours (paper)
-# Note: paper used 1 register; we use 4 (only public checkpoint).
-#       Giant model needed for paper-accurate numbers.
-
-# =================================================================
-# TABLE 5 — Local information: position prediction & reconstruction
-# =================================================================
-# #registers   patches                 pos top-1   L2 error
-# -----------------------------------------------------------------
-# 0            non-outliers             79.3 (66.3)     3.0 (15.9)
-# 4            non-outliers             67.5 (65.8)     2.6 (16.0)
-# -----------------------------------------------------------------
-# Columns: ours (paper)
-# Note: L2 recon error is computed as described in the code comments.
-
-# GIANT
-# =================================================================
-# TABLE 4 — Global information: Linear probing on Aircraft
-# =================================================================
-# #registers      [CLS]   normal   outlier   register
-# -----------------------------------------------------------------
-# 0                 90.7 (84.6)       13.9 (15.5)       81.9 (73.3)         N/A (N/A)
-# 4                 88.3 (85.2)       21.2 (14.5)         N/A (N/A)       82.7 (71.1)
-# -----------------------------------------------------------------
-# Columns: ours (paper)
-# Note: paper used 1 register; we use 4 (only public checkpoint).
-#       Giant model needed for paper-accurate numbers.
-
-# =================================================================
-# TABLE 5 — Local information: position prediction & reconstruction
-# =================================================================
-# #registers   patches                 pos top-1   L2 error
-# -----------------------------------------------------------------
-# 0            non-outliers             82.0 (66.3)     2.8 (15.9)
-# 4            non-outliers             76.5 (65.8)     2.9 (16.0)
-# -----------------------------------------------------------------
-# Columns: ours (paper)
-# Note: L2 recon error is computed as described in the code comments.
-
-"""
-Appendix D.2 Replication — "Vision Transformers Need Registers" (ICLR 2024)
-============================================================================
-
-What this script does
----------------------
-Reproduces Table 4 and Table 5 from Appendix D.2.
-
-TABLE 4 — Global information test (Aircraft classification)
-  - For each image, take one token as the whole image representation.
-  - Train a logistic regression and measure top-1 accuracy.
-  - Tokens tested: [CLS], a random normal patch, a random outlier patch, register token.
-  - Model: DINOv2-g without registers (0 reg) and with 1 register (1 reg).
-
-  Paper numbers:
-    #registers  [CLS]  normal patch  outlier patch  register
-         0      84.6      15.5          73.3           N/A
-         1      85.2      14.5          N/A            71.1
-
-TABLE 5 — Local information test (do normal patches still hold local info?)
-  - Position prediction: train a classifier to predict the patch's grid position (row, col).
-  - Reconstruction: train a linear decoder to reconstruct the patch's raw pixels from its embedding.
-  - Only non-outlier (normal) patches are used.
-  - Model: DINOv2-g without registers (0) and with 4 registers (4).
-
-  Paper numbers:
-    #registers  patches             position top-1  L2 recon error
-         0      non-outliers           66.3           15.9
-         4      non-outliers (all)     65.8           16.0
-
-Dataset
--------
-  FGVC-Aircraft (torchvision) — downloaded automatically on first run.
-  Set AIRCRAFT_ROOT below to where you want the data stored (~500 MB).
-
-Models
-------
-  DINOv2-g (no reg):    facebook/dinov2-giant          via HuggingFace transformers
-  DINOv2-g (1 reg):     not publicly released separately.
-    → We use DINOv2-g (4 reg): facebook/dinov2-giant-imagenet21k-p14-reg4
-      and note the minor mismatch (paper used 1 reg for Table 4, 4 reg for Table 5).
-
-NOTE: DINOv2-g is a ~1.1 GB download. If you want a faster sanity-check, change
-MODEL_SIZE = "base" below and the numbers will be lower but the trend the same.
-
-Outlier threshold
------------------
-  The paper defines outliers as patches whose output norm is "clearly higher"
-  than the rest — the distribution is bimodal (Fig. 3). The paper uses 150 for
-  DINOv2-g specifically, and notes "this hand-picked cutoff value can vary across
-  models". We compute the threshold automatically using Otsu's method, which finds
-  the valley between the two modes of the norm histogram — the same thing the
-  authors did visually. A sanity check ensures outliers stay a small minority
-  (1–15%); if not (e.g. for the reg model where outliers have disappeared), we
-  fall back to mean + 3*std.
-"""
-
 import os
 import random
 import numpy as np
@@ -117,9 +12,9 @@ from skimage.filters import threshold_otsu
 from tqdm import tqdm
 
 # =============================================================================
-# CONFIGURATION — edit these paths / flags as needed
+# CONFIGURATION
 # =============================================================================
-AIRCRAFT_ROOT = "./data/aircraft"   # where to download FGVC-Aircraft
+AIRCRAFT_ROOT = "./src/Raffaele/data/aircraft"
 MODEL_SIZE    = "giant"              # "base" (fast) or "giant" (paper-accurate)
 IMG_SIZE      = 518                 # DINOv2 native resolution
 PATCH_SIZE    = 14
@@ -163,7 +58,7 @@ def get_aircraft(split: str):
     return FGVCAircraft(
         root=AIRCRAFT_ROOT,
         split=split,
-        annotation_level="variant",   # finest-grained: 100 classes
+        annotation_level="variant", 
         transform=transform,
         download=True,
     )
@@ -182,37 +77,26 @@ def load_model(model_name: str):
 
 def extract_features(model, dataset, num_regs: int):
     """
-    Forward all images through the model and collect:
-      - cls_feat   : [N, D]  — [CLS] token embedding
-      - patch_feats: [N, n_patches, D]  — all patch token embeddings
-      - patch_norms: [N, n_patches]  — L2 norm of each patch embedding
-      - reg_feats  : [N, num_regs, D]  — register token embeddings (empty if 0)
-      - labels     : [N]  — class label
+    Run the model on the dataset and extract features.
 
-    Token layout in DINOv2 HF output (last_hidden_state):
-      [CLS, reg_0, ..., reg_{num_regs-1}, patch_0, ..., patch_{n_patches-1}]
+    @params
+        - model    : DINOv2 model loaded from HuggingFace
+        - dataset  : PyTorch dataset (FGVC-Aircraft split)
+        - num_regs : number of register tokens in the model (0 or 4)
 
-    IMPORTANT — why we use a forward hook for norms:
-      The final last_hidden_state has a LayerNorm applied which squashes all
-      token norms to a similar value (~58-65 for DINOv2-g), destroying the
-      bimodal outlier signal. We register a hook on the LAST ENCODER LAYER to
-      capture its output before the final LayerNorm. That pre-norm tensor is
-      where outlier patches spike to 100-300+, exactly as shown in the paper.
-      Using output_hidden_states=True would work too but stores all 40 layers
-      simultaneously and causes OOM on DINOv2-g. The hook stores only one
-      extra tensor per batch, so memory cost is negligible.
-      Linear probing features still use last_hidden_state (post-norm).
+    @returns
+        - cls_feat   : [N, D]  — [CLS] token embedding
+        - patch_feats: [N, n_patches, D]  — all patch token embeddings
+        - patch_norms: [N, n_patches]  — L2 norm of each patch embedding
+        - reg_feats  : [N, num_regs, D]  — register token embeddings (empty if 0)
+        - labels     : [N]  — class label
     """
-    # ── Register hook on last encoder layer to capture pre-norm activations ──
+    # Register hook on last encoder layer to capture pre-norm activations
     prenorm_buffer = {}
 
     def _hook(module, input, output):
-        # output is the tensor coming out of the last transformer block,
-        # before the model's final LayerNorm. Store on CPU immediately
-        # to avoid holding extra GPU memory.
         prenorm_buffer["hs"] = output.detach().cpu()
 
-    # model.encoder.layer is the list of transformer blocks in HF DINOv2
     last_layer = model.encoder.layer[-1]
     hook_handle = last_layer.register_forward_hook(_hook)
 
@@ -230,16 +114,16 @@ def extract_features(model, dataset, num_regs: int):
             for imgs, labels in tqdm(loader, desc="Extracting features"):
                 imgs = imgs.to(DEVICE)
                 out  = model(pixel_values=imgs)
-                hs   = out.last_hidden_state  # (B, 1+R+P, D) — post-norm
+                hs   = out.last_hidden_state 
 
                 cls_tok  = hs[:, 0, :]
                 reg_toks = hs[:, 1 : 1 + num_regs, :]
                 patches  = hs[:, 1 + num_regs :, :]
 
                 # Norms from pre-norm hook — bimodal signal intact
-                hs_pre  = prenorm_buffer["hs"]          # (B, 1+R+P, D) on CPU
+                hs_pre  = prenorm_buffer["hs"]
                 patches_pre = hs_pre[:, 1 + num_regs :, :]
-                norms = patches_pre.norm(dim=-1)         # (B, P) on CPU
+                norms = patches_pre.norm(dim=-1)         
 
                 all_cls.append(cls_tok.cpu())
                 all_patch.append(patches.cpu())
@@ -247,7 +131,7 @@ def extract_features(model, dataset, num_regs: int):
                 all_regs.append(reg_toks.cpu())
                 all_labels.append(labels)
     finally:
-        hook_handle.remove()   # always clean up the hook
+        hook_handle.remove()
 
     return (
         torch.cat(all_cls,    dim=0),   # (N, D)
@@ -264,11 +148,6 @@ def extract_features(model, dataset, num_regs: int):
 def compute_outlier_threshold(patch_norms: torch.Tensor) -> float:
     """
     Find the outlier threshold automatically from the norm distribution.
-
-    The paper (Fig. 3) shows the distribution is clearly bimodal: normal patches
-    cluster at low norms, outliers spike much higher. We try three strategies in
-    order, accepting the first one whose outlier fraction falls in [1%, 15%]:
-
       1. Otsu on the norm histogram clipped at the 99th percentile.
          Clipping prevents the sparse high-norm tail from dominating the
          histogram, so Otsu finds the valley between the two modes.
@@ -280,9 +159,6 @@ def compute_outlier_threshold(patch_norms: torch.Tensor) -> float:
          (mean+3std fails here because the outliers inflate both mean and std.)
 
       3. 95th percentile hard fallback.
-
-    For the with-registers model the distribution is unimodal (no outliers), so
-    all strategies produce a threshold with ~0% outliers — correct behaviour.
     """
     norms = patch_norms.flatten().numpy()
 
@@ -298,8 +174,7 @@ def compute_outlier_threshold(patch_norms: torch.Tensor) -> float:
               f"  {'OK' if ok else 'skip'}")
         return t if ok else None
 
-    # Strategy 1: Otsu on clipped histogram — try progressively tighter clips
-    # to handle both strong outliers (giant: max=537) and weak ones (base: max=208)
+    # Strategy 1: Otsu on clipped histogram 
     for clip_pct in [99, 97, 95]:
         try:
             clip_val = float(np.percentile(norms, clip_pct))
@@ -333,18 +208,22 @@ def select_patch_tokens(patch_feats, patch_norms, mode: str, threshold: float):
     mode: "outlier" — pick one patch with norm > threshold
           "normal"  — pick one patch with norm <= threshold
 
-    Returns:
-      feats  : (N', D)  — one patch per image (images with no eligible patch are dropped)
-      labels : (N',)    — corresponding labels
-    
-    NOTE: labels must be passed in separately; handled in the caller.
+    @params
+        - patch_feats : (N, P, D)  — all patch embeddings
+        - patch_norms : (N, P)     — L2 norm of each patch
+        - mode        : "outlier" or "normal"
+        - threshold   : norm threshold to separate outliers from normal patches
+          
+    @returns
+        - feats  : (N', D)  — one patch per image (images with no eligible patch are dropped)
+        - labels : (N',)    — corresponding labels
     """
     N, P, D = patch_feats.shape
     out_feats = []
     valid_idx = []
 
     for i in range(N):
-        norms_i = patch_norms[i]  # (P,)
+        norms_i = patch_norms[i]  
         if mode == "outlier":
             eligible = (norms_i > threshold).nonzero(as_tuple=False).squeeze(-1)
         else:
@@ -361,13 +240,13 @@ def select_patch_tokens(patch_feats, patch_norms, mode: str, threshold: float):
         raise RuntimeError(
             f"select_patch_tokens(mode='{mode}', threshold={threshold:.1f}): "
             f"no eligible patches found in any of the {N} images. "
-            f"Check the threshold — norm diagnostics are printed above."
+            f"Check the threshold"
         )
     return torch.stack(out_feats), torch.tensor(valid_idx)
 
 
 # =============================================================================
-# 5. LINEAR PROBING (Table 4 — classification)
+# 5. LINEAR PROBING
 # =============================================================================
 def linear_probe_classification(train_feats, train_labels,
                                  test_feats,  test_labels,
@@ -392,7 +271,7 @@ def linear_probe_classification(train_feats, train_labels,
 
 
 # =============================================================================
-# 6. LOCAL INFORMATION PROBING (Table 5)
+# 6. LOCAL INFORMATION PROBING
 # =============================================================================
 
 def linear_probe_position(train_patch, train_norms,
@@ -406,25 +285,23 @@ def linear_probe_position(train_patch, train_norms,
     Train a linear classifier to predict each patch's grid position.
     We predict (row, col) as a single integer label = row * G + col.
 
-    To keep the number of classes manageable we use a COARSER grid of 7x7=49
-    super-cells (each covering ~5x5 patches of the 37x37 grid). This matches
-    the spirit of the paper's position probe while being tractable with lbfgs.
-    Subsampled for speed.
+    @returns
+        - acc: top-1 accuracy on the test set
     """
     G_fine  = IMG_SIZE // PATCH_SIZE          # 37
     G_coarse = 7                              # coarsen to 7x7 = 49 classes
     step = G_fine // G_coarse                 # ~5 patches per super-cell
 
-    # Build coarse position labels: (N, P)
-    fine_idx   = torch.arange(n_patches)      # 0..1368
+    # Build coarse position labels
+    fine_idx   = torch.arange(n_patches)      
     row_fine   = fine_idx // G_fine
     col_fine   = fine_idx %  G_fine
     row_coarse = (row_fine  // step).clamp(max=G_coarse - 1)
     col_coarse = (col_fine  // step).clamp(max=G_coarse - 1)
-    pos_labels = (row_coarse * G_coarse + col_coarse).long()  # (P,) 0..48
+    pos_labels = (row_coarse * G_coarse + col_coarse).long()  
 
-    pos_labels_tr = pos_labels.unsqueeze(0).expand(len(train_patch), -1)  # (N_tr, P)
-    pos_labels_te = pos_labels.unsqueeze(0).expand(len(test_patch),  -1)  # (N_te, P)
+    pos_labels_tr = pos_labels.unsqueeze(0).expand(len(train_patch), -1)  
+    pos_labels_te = pos_labels.unsqueeze(0).expand(len(test_patch),  -1)  
 
     # Keep only normal patches
     mask_tr = (train_norms <= threshold)
@@ -465,17 +342,10 @@ def linear_probe_reconstruction(train_patch, train_norms,
                                   max_samples: int = 50_000):
     """
     Train a Ridge regression to predict raw patch pixel values from patch
-    embeddings, and report mean L2 error. This matches what the paper does:
-    'we train a linear model to predict the pixel values of the image from
-    the patch embeddings' (Section 3 / Fig. 5b).
+    embeddings, and report mean L2 error. 
 
-    Steps:
-      1. Re-load images WITHOUT normalisation to get raw [0,1] pixel values.
-      2. Extract 14x14 pixel patches matching each embedding's grid position.
-      3. Train Ridge: embedding -> flattened patch pixels (14*14*3 = 588 dims).
-      4. Report mean L2 error on the test set.
-
-    Subsampled to max_samples for speed.
+    @returns
+        - l2: mean L2 error per patch (see code comments for details)
     """
     patch_pixels = PATCH_SIZE * PATCH_SIZE * 3   # 588 for 14x14 RGB
 
@@ -499,8 +369,8 @@ def linear_probe_reconstruction(train_patch, train_norms,
         for i in range(len(raw_ds)):
             if total >= max_n:
                 break
-            img, _ = raw_ds[i]                          # (3, H, W) in [0,1]
-            norms_i = patch_norms_all[i]                # (P,)
+            img, _ = raw_ds[i]                          
+            norms_i = patch_norms_all[i]                
             normal_idx = (norms_i <= threshold).nonzero(as_tuple=False).squeeze(-1)
             if normal_idx.numel() == 0:
                 continue
@@ -512,7 +382,7 @@ def linear_probe_reconstruction(train_patch, train_norms,
                 row, col = p // G, p % G
                 # Extract the 14x14 pixel patch at this grid position
                 r0, c0 = row * PATCH_SIZE, col * PATCH_SIZE
-                patch_pix = img[:, r0:r0+PATCH_SIZE, c0:c0+PATCH_SIZE]   # (3,14,14)
+                patch_pix = img[:, r0:r0+PATCH_SIZE, c0:c0+PATCH_SIZE]   
                 pixs.append(patch_pix.flatten())
                 embs.append(patch_feats[i, p, :])
                 total += 1
@@ -532,9 +402,9 @@ def linear_probe_reconstruction(train_patch, train_norms,
 
     reg = Ridge(alpha=1.0)
     reg.fit(X_tr_emb, X_tr_pix)
-    pred = reg.predict(X_te_emb)                         # (N_te, 588)
+    pred = reg.predict(X_te_emb)                        
 
-    # L2 error per patch, then mean — same metric as the paper
+    # L2 error per patch
     l2 = float(np.mean(np.sqrt(np.sum((X_te_pix - pred) ** 2, axis=1))))
     print(f"  [{tag}] L2 recon error = {l2:.1f}")
     return l2
@@ -544,7 +414,7 @@ def linear_probe_reconstruction(train_patch, train_norms,
 # 7. MAIN
 # =============================================================================
 def main():
-    # ── Load datasets ─────────────────────────────────────────────────────
+    # Load datasets
     print("\n=== Loading Aircraft dataset ===")
     train_ds = get_aircraft("trainval")
     test_ds  = get_aircraft("test")
@@ -552,10 +422,7 @@ def main():
     print(f"  train: {len(train_ds)}, test: {len(test_ds)}, "
           f"patches per image: {n_patches}")
 
-    # ── TABLE 4 SETUP: models with 0 and 1 register ───────────────────────
-    # Paper used DINOv2-g with 0 reg and 1 reg (Table 4).
-    # Only 4-reg is public; we use it and note the difference.
-
+    # TABLE 4 SETUP
     results_t4 = {}
 
     for num_regs, model_name in [(0, MODEL_NO_REG), (4, MODEL_WITH_REG)]:
@@ -573,10 +440,7 @@ def main():
         te_cls, te_patch, te_norms, te_regs, te_labels = extract_features(
             model, test_ds, num_regs)
 
-        # ── Compute adaptive threshold from the training norms ────────────
-        # We use train norms only (no peeking at test set).
-        # For the no-reg model this finds the bimodal valley.
-        # For the reg model there are no outliers so the fallback kicks in.
+        # Compute adaptive threshold from the training norms 
         threshold = compute_outlier_threshold(tr_norms)
 
         row = {}
@@ -614,7 +478,7 @@ def main():
         else:
             row["outlier patch"] = float("nan")   # N/A (no outliers in reg model)
             # Register token — use first register (reg_0)
-            tr_reg0 = tr_regs[:, 0, :]   # (N, D)
+            tr_reg0 = tr_regs[:, 0, :]
             te_reg0 = te_regs[:, 0, :]
             acc = linear_probe_classification(
                 tr_reg0, tr_labels, te_reg0, te_labels, "register (reg_0)")
@@ -622,7 +486,7 @@ def main():
 
         results_t4[num_regs] = row
 
-        # ── TABLE 5: local information probing ────────────────────────────
+        # TABLE 5
         print(f"\n--- Table 5 probing (num_regs={num_regs}) ---")
         pos_acc = linear_probe_position(
             tr_patch, tr_norms, te_patch, te_norms,
@@ -639,11 +503,10 @@ def main():
         else:
             t5_with_reg = (pos_acc, l2_err)
 
-        # Free GPU memory between models
         del model
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-    # ── PRINT TABLES ──────────────────────────────────────────────────────
+    # PRINT TABLES 
     print("\n" + "=" * 65)
     print("TABLE 4 — Global information: Linear probing on Aircraft")
     print("=" * 65)
@@ -670,11 +533,6 @@ def main():
               f"{fmt(r['outlier patch'], p.get('outlier patch', float('nan'))):>16}  "
               f"{fmt(r['register'],      p.get('register', float('nan'))):>16}")
 
-    print("-" * 65)
-    print("Columns: ours (paper)")
-    print("Note: paper used 1 register; we use 4 (only public checkpoint).")
-    print("      Giant model needed for paper-accurate numbers.")
-
     print("\n" + "=" * 65)
     print("TABLE 5 — Local information: position prediction & reconstruction")
     print("=" * 65)
@@ -691,12 +549,6 @@ def main():
         print(f"{num_regs:<12} {patches:<22} "
               f"{pos:>6.1f} ({p_pos:.1f})  "
               f"{l2:>6.1f} ({p_l2:.1f})")
-
-    print("-" * 65)
-    print("Columns: ours (paper)")
-    print("Note: L2 recon error is computed as described in the code comments.")
-
-    print("\nDone.")
 
 
 if __name__ == "__main__":

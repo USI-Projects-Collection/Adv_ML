@@ -1,48 +1,3 @@
-"""
-TABLE 3 REPLICATION — "Vision Transformers Need Registers" (ICLR 2024)
-=======================================================================
-
-What this reproduces
---------------------
-Table 3: Unsupervised Object Discovery using LOST.
-Metric  : CorLoc — % of images where IoU(predicted_box, best_gt_box) >= 0.5
-Datasets: VOC 2007 trainval | VOC 2012 trainval | COCO 20k (val2017 first 20k)
-
-Paper reference values:
-  Model             VOC07  VOC12  COCO20k
-  DeiT-III           11.7   13.1    10.7
-  DeiT-III+reg       27.1   32.7    25.1
-  OpenCLIP           38.8   44.3    31.0
-  OpenCLIP+reg       37.1   42.0    27.9
-  DINOv2             35.3   40.2    26.9
-  DINOv2+reg         55.4   60.0    42.0
-
-Rules from paper (Sec. 3.3)
------------------------------
-  DINOv2    → keys,   gram bias = 0.0
-  OpenCLIP  → values, gram bias = 0.1
-  DeiT-III  → values, gram bias = 0.1
-
-  The gram matrix is mean-centred (globally) so that threshold=0.0 separates
-  above-average similarity (background) from below-average (foreground seed).
-
-Unavailable checkpoints
------------------------
-  DeiT-III+reg   : authors never released weights. Row is omitted.
-  OpenCLIP+reg   : authors trained on proprietary Shutterstock data; weights
-                   not released. We use test-time registers as a proxy:
-                   amildravid4292/clip-vitb16-test-time-registers (HuggingFace).
-
-Dataset paths  (edit before running)
--------------------------------------
-  VOC_ROOT  — folder containing VOCdevkit/  (VOC2007 + VOC2012)
-  COCO_ROOT — folder containing images/val2017/ and annotations/
-
-  VOC 2007:  http://host.robots.ox.ac.uk/pascal/VOC/voc2007/
-  VOC 2012:  http://host.robots.ox.ac.uk/pascal/VOC/voc2012/
-  COCO:      https://cocodataset.org/#download  (val2017 images + annotations)
-"""
-
 import json
 import os
 import time
@@ -62,15 +17,14 @@ import open_clip
 from transformers import AutoModel
 
 # =============================================================================
-# CONFIGURATION  — edit these paths
+# CONFIGURATION
 # =============================================================================
-VOC_ROOT  = "./nothing/data"            # must contain VOCdevkit/VOC2007 and VOCdevkit/VOC2012
-COCO_ROOT = "./nothing/data/coco"       # must contain images/val2017/ + annotations/instances_val2017.json
+VOC_ROOT  = "./src/Raffaele/data"            # must contain VOCdevkit/VOC2007 and VOCdevkit/VOC2012
+COCO_ROOT = "./src/Raffaele/data/coco"       # must contain images/val2017/ + annotations/instances_val2017.json
 
-BATCH_SIZE  = 32    # images per GPU forward pass — reduce if you run out of VRAM
+BATCH_SIZE  = 32    # images per GPU forward pass
 NUM_WORKERS = 4     # DataLoader CPU workers
-USE_FP16    = True  # mixed precision on GPU (set False for CPU)
-# =============================================================================
+USE_FP16    = True  # mixed precision on GPU
 
 
 # =============================================================================
@@ -79,7 +33,7 @@ USE_FP16    = True  # mixed precision on GPU (set False for CPU)
 
 class COCO20kDataset(Dataset):
     """
-    First 20,000 annotated images of COCO val2017, matching the paper's protocol.
+    First 20,000 annotated images of COCO val2017, matching the paper
 
     Expected directory layout:
       <COCO_ROOT>/images/val2017/<file>.jpg
@@ -148,24 +102,19 @@ def _collate_pil(batch):
 
 
 # =============================================================================
-# 2. FEATURE EXTRACTOR  (forward hook, supports timm and open_clip backends)
+# 2. FEATURE EXTRACTOR HOOK
 # =============================================================================
 
 class AttentionFeatureExtractor:
     """
     Registers a forward hook on the last attention layer and captures the raw
     key or value projections.
-
-    Token layout after the hook:
-      timm, no reg  : [CLS, p_0 ... p_N]        → num_special = 1
-      timm, R regs  : [CLS, r_0...r_{R-1}, p_0...p_N] → num_special = 1 + R
-      open_clip     : [CLS, p_0 ... p_N]        → num_special = 1
     """
 
     def __init__(self, model, feature_type: str, backend: str):
         self.backend      = backend
         self.feature_type = feature_type.lower()  # "keys" or "values"
-        self.features     = None   # (B, N_total, C) filled by the hook
+        self.features     = None
         self._handle      = None
         self._register(model)
 
@@ -173,7 +122,7 @@ class AttentionFeatureExtractor:
         feat_idx = {"keys": 1, "values": 2}[self.feature_type]
 
         if self.backend == "timm":
-            # Hook the QKV linear directly — its output is (B, N, 3C)
+            # Hook the QKV linear directly — output is (B, N, 3C)
             qkv_linear = model.blocks[-1].attn.qkv
             num_heads  = model.blocks[-1].attn.num_heads
 
@@ -183,19 +132,18 @@ class AttentionFeatureExtractor:
                 D = C  // num_heads
                 qkv  = output.reshape(B, N, 3, num_heads, D).permute(2, 0, 3, 1, 4)
                 feat = qkv[feat_idx].permute(0, 2, 1, 3).reshape(B, N, C)
-                self.features = feat   # keep on GPU; moved to CPU in evaluate()
+                self.features = feat
 
             self._handle = qkv_linear.register_forward_hook(_hook)
 
         elif self.backend in ("open_clip", "open_clip_hf"):
-            # OpenCLIP: in_proj_weight fuses Q, K, V → recompute from input
             if self.backend == "open_clip":
                 last_attn = model.visual.transformer.resblocks[-1].attn
             else:
                 last_attn = model.model.visual.transformer.resblocks[-1].attn
 
             def _hook(module, inputs, output):
-                x = inputs[0]                   # (B, N, C_in)
+                x = inputs[0]
                 B, N, _ = x.shape
                 C_in      = module.in_proj_weight.shape[1]
                 num_heads = module.num_heads
@@ -219,7 +167,7 @@ class AttentionFeatureExtractor:
                 model.encode_image(x)
             elif self.backend == "open_clip_hf":
                 model.model.encode_image(x)
-        return self.features   # (B, N_total, C) — still on GPU
+        return self.features
 
     def remove(self):
         if self._handle:
@@ -232,28 +180,17 @@ class AttentionFeatureExtractor:
 
 def _gram_matrix(patch_feats: torch.Tensor, bias: float) -> torch.Tensor:
     """
-    Compute the cosine similarity Gram matrix with bias and per-row centering.
+    Compute the cosine similarity Gram matrix with bias and per-row centering: 
+    "Is patch j MORE similar to patch i than patch i's average?"
+    Without it, raw cosine similarities are all positive and 
+    argmin(degree) picks index 0 always, and CorLoc collapses to ~30% (always predicting the top-left corner of the image).
 
-      G_raw[i,j] = K̂_i · K̂_j + b          (paper Sec. 3.3 formula)
-      G[i,j]     = G_raw[i,j] - mean_j(G_raw[i,:])   (per-row centering)
-
-    Per-row centering is essential for all models. Without it, raw cosine
-    similarities are all positive (they cluster at 0.3–0.8 for DINOv2 keys,
-    and adding bias=0.0 or 0.1 keeps them positive). This means every patch
-    is above the threshold=0, every patch has the same degree, argmin(degree)
-    picks index 0 always, and CorLoc collapses to ~30% (always predicting the
-    top-left corner of the image).
-
-    Per-row centering re-expresses each entry as:
-      "Is patch j MORE similar to patch i than patch i's average?"
-    This makes threshold=0 a meaningful separator between above-average
-    (background) and below-average (potential foreground seed) similarity,
-    regardless of the absolute similarity scale of the model.
-
-    The bias b shifts the raw similarities before centering, which affects
-    the variance of the centered matrix — a higher bias makes the threshold
-    more permissive. This is why DINOv2-keys uses b=0.0 (tighter) while
-    OpenCLIP/DeiT-III-values use b=0.1 (more permissive).
+    @params
+        - patch_feats : (N, C) tensor of patch features (keys or values)
+        - bias        : scalar bias to add to cosine similarities before centering - a higher bias makes the threshold more permissive
+    
+    @returns
+        - G : (N, N) tensor of the centered cosine similarity matrix
     """
     feats = F.normalize(patch_feats.float(), p=2, dim=-1)   # (N, C)
     G     = feats @ feats.T + bias                           # (N, N)
@@ -268,19 +205,23 @@ def _lost(patch_feats: torch.Tensor, bias: float,
     Run LOST on a single image's patch features and return a predicted
     bounding box [x1, y1, x2, y2] in original image pixel coordinates.
 
-    Steps:
-      1. Build mean-centred gram matrix G.
-      2. Threshold at 0 → binary adjacency matrix A.
-      3. degree[i] = sum of row i in A  (how many patches are i similar to).
-      4. seed = argmin(degree)  — the most "isolated" patch = likely foreground.
-      5. Expand seed: keep all patches with G[seed, j] > 0.
-      6. Find largest connected component of the expansion → bounding box.
+    @params
+        - patch_feats : (N, C) tensor of patch features (keys or values)
+        - bias        : scalar bias to add to cosine similarities before centering - a higher bias makes the threshold more permissive
+        - grid_h, grid_w : height and width of the patch grid
+        - orig_w, orig_h : original image width and height in pixels
+
+    @returns
+        - box : [x1, y1, x2, y2] in original image pixel coordinates
     """
+    # 1. Build mean-centred gram matrix G.
     G = _gram_matrix(patch_feats, bias)   # (N, N) on CPU
 
-    # Steps 2–4: seed selection
+    # 2. Threshold at 0 → binary adjacency matrix A.
     A      = (G > 0).float()
+    # 3. Degree = number of neighbors for each patch.
     degree = A.sum(dim=-1)                     # (N,)
+    # 4. Seed = patch with lowest degree (most isolated).
     seed   = int(degree.argmin().item())
 
     # Step 5: seed expansion
@@ -295,7 +236,7 @@ def _lost(patch_feats: torch.Tensor, bias: float,
 
     # Largest connected component
     sizes = np.bincount(labeled.ravel())
-    sizes[0] = 0                               # ignore background label
+    sizes[0] = 0  # zero label is background, ignore it
     largest  = int(sizes.argmax())
     slices   = ndimage.find_objects(
         (labeled == largest).astype(np.int32)
@@ -312,6 +253,15 @@ def _lost(patch_feats: torch.Tensor, bias: float,
 
 
 def _iou(boxA: list, boxB: list) -> float:
+    """
+    Compute Intersection over Union (IoU) of two boxes in [x1,y1,x2,y2] format.
+
+    @params
+        - boxA, boxB : [x1, y1, x2, y2]
+
+    @returns
+        - iou : scalar IoU value between 0 and 1
+    """
     xA = max(boxA[0], boxB[0]);  yA = max(boxA[1], boxB[1])
     xB = min(boxA[2], boxB[2]);  yB = min(boxA[3], boxB[3])
     inter = max(0, xB - xA) * max(0, yB - yA)
@@ -330,6 +280,12 @@ def _resolve_timm_model(candidates: list[str]) -> str:
     """
     Return the first candidate name that exists as a pretrained timm checkpoint.
     Raises RuntimeError if none are found, with a helpful message.
+
+    @params
+        - candidates : list of timm model names in priority order (most preferred first)
+    
+    @returns
+        - model_name : the first candidate that is available as a pretrained checkpoint in the current timm version
     """
     available = set(timm.list_models(pretrained=True))
     for name in candidates:
@@ -348,6 +304,17 @@ def load_model(cfg: dict, device: torch.device):
     """
     Load model according to cfg['source'] and return
     (model, extractor, num_special_tokens, transform).
+
+    @params
+        - cfg : model config dict with keys
+
+    @returns
+        - model              : the loaded model, in eval mode on the specified device
+        - extractor         : an AttentionFeatureExtractor hooked to the model's last attention layer, configured to extract the specified feature type (keys or values)
+        - num_special_tokens : number of special tokens (CLS + registers) at the start of the sequence, which should be ignored when indexing patch features
+        - transform         : a torchvision transform to preprocess input images for the model
+        - n_patches          : number of patches (N) expected by the model's patch embedding, used for LOST's grid reshaping
+        - grid_size          : height and width of the patch grid (sqrt(N)), used for LOST's grid reshaping
     """
     source     = cfg["source"]
     img_size   = cfg["img_size"]
@@ -362,9 +329,6 @@ def load_model(cfg: dict, device: torch.device):
     ])
 
     if source == "timm":
-        # model_name can be a string or a priority-ordered list of candidates.
-        # Using a list makes the script robust across timm versions where
-        # pretrained tag names change between releases.
         model_name = cfg["model_name"]
         if isinstance(model_name, list):
             model_name = _resolve_timm_model(model_name)
@@ -374,10 +338,6 @@ def load_model(cfg: dict, device: torch.device):
         backend = "timm"
         num_special = 1 + cfg.get("regs", 0)   # CLS + registers
 
-        # Read the actual input resolution from the model's own config.
-        # This is necessary when the resolved checkpoint differs from the
-        # config's img_size/patch_size (e.g. the DeiT-III+reg fallback lands
-        # on vit_base_patch14_reg4_dinov2 which expects 518px, not 224px).
         img_size   = model.default_cfg["input_size"][1]
         patch_size = model.patch_embed.patch_size[0]
         n_patches  = (img_size // patch_size) ** 2
@@ -411,7 +371,7 @@ def load_model(cfg: dict, device: torch.device):
         raise ValueError(f"Unknown source: {source}")
 
     extractor = AttentionFeatureExtractor(model, cfg["type"], backend)
-    grid_size = int(n_patches ** 0.5)   # always sqrt(n_patches), works for any resolved model
+    grid_size = int(n_patches ** 0.5)
     return model, extractor, num_special, transform, n_patches, grid_size
 
 
@@ -423,6 +383,14 @@ def evaluate(cfg: dict, dataset, ds_name: str, device: torch.device) -> float:
     """
     Run LOST on all images in `dataset` and return CorLoc (%).
     Images are forwarded in batches for speed; LOST is run per-image on CPU.
+
+    @params
+        - cfg : model config dict, used to load the model and extractor
+        - dataset : a PyTorch Dataset that returns (PIL image, targets) pairs
+        - ds_name : name of the dataset, used for printing results
+
+    @returns
+        - corloc : CorLoc percentage over the dataset
     """
     print(f"\n  [{cfg['name']}] evaluating on {ds_name} ...")
     t0 = time.time()
@@ -445,26 +413,25 @@ def evaluate(cfg: dict, dataset, ds_name: str, device: torch.device) -> float:
                 else torch.autocast("cpu", enabled=False))
 
     for images, targets in tqdm(loader, desc=f"    {ds_name}", leave=False):
-        # ── Stack images into a batch tensor ──────────────────────────────
+        # Stack images into a batch tensor 
         batch = torch.stack([transform(img) for img in images]).to(device)
 
-        # ── Forward pass ──────────────────────────────────────────────────
+        # Forward pass
         with fp16_ctx:
-            feats = extractor.forward(model, batch)  # (B, N_total, C), GPU
+            feats = extractor.forward(model, batch)
 
-        # ── Per-image LOST on CPU ─────────────────────────────────────────
-        feats_cpu = feats.float().cpu()              # cast fp16→fp32 if needed
+        feats_cpu = feats.float().cpu()
 
         for i, (image, raw) in enumerate(zip(images, targets)):
             orig_w, orig_h = image.size
 
-            # Parse ground-truth boxes (VOC dict or COCO list)
+            # Parse ground-truth boxes
             if isinstance(raw, dict):
                 gt_boxes = _parse_voc_boxes(raw)
             else:
-                gt_boxes = raw   # COCO20kDataset: already [[x1,y1,x2,y2],...]
+                gt_boxes = raw
 
-            patch_feats = feats_cpu[i, num_special:]  # (n_patches, C)
+            patch_feats = feats_cpu[i, num_special:]
 
             # Sanity check — skip malformed images
             if patch_feats.shape[0] != n_patches:
@@ -495,17 +462,14 @@ def evaluate(cfg: dict, dataset, ds_name: str, device: torch.device) -> float:
 # =============================================================================
 # 6. MODEL CONFIGS
 # =============================================================================
-# Paper rules (Sec. 3.3):
+# Paper rules:
 #   DINOv2    → keys,   bias=0.0,  ViT-Large
 #   OpenCLIP  → values, bias=0.1,  ViT-B/16
 #   DeiT-III  → values, bias=0.1,  ViT-B/16
-#
-# DeiT-III+reg: authors never released weights → row omitted.
-# OpenCLIP+reg: authors used proprietary data → test-time-registers proxy used.
 # =============================================================================
 
 CONFIGS = [
-    # ── DeiT-III (label-supervised) ─────────────────────────────────────────
+    # ── DeiT-III ─────────────────────────────────────────
     {
         "name":       "DeiT-III",
         "source":     "timm",
@@ -532,7 +496,7 @@ CONFIGS = [
         "regs":       4,
     },
 
-    # ── OpenCLIP (text-supervised) ───────────────────────────────────────────
+    # ── OpenCLIP ───────────────────────────────────────────
     {
         "name":       "OpenCLIP",
         "source":     "open_clip",
@@ -553,7 +517,7 @@ CONFIGS = [
         "patch_size": 16,
     },
 
-    # ── DINOv2 (self-supervised) — ViT-Large as used in the paper ───────────
+    # ── DINOv2 ───────────────────────────────────────────
     {
         "name":       "DINOv2",
         "source":     "timm",
@@ -579,7 +543,7 @@ CONFIGS = [
 # Paper reference numbers for the final comparison table
 PAPER = {
     "DeiT-III":                       (11.7,  13.1,  10.7),
-    "DeiT-III+reg (proxy)":           (27.1,  32.7,  25.1),  # paper used their own trained model
+    "DeiT-III+reg (proxy)":           (27.1,  32.7,  25.1),
     "OpenCLIP":                        (38.8,  44.3,  31.0),
     "OpenCLIP+reg (test-time proxy)":  (37.1,  42.0,  27.9),
     "DINOv2":                          (35.3,  40.2,  26.9),
@@ -603,19 +567,19 @@ if __name__ == "__main__":
 
     # ── Load datasets ────────────────────────────────────────────────────────
     print("\nLoading datasets ...")
-    # voc07   = VOCDetection(VOC_ROOT, year="2007", image_set="trainval",
-    #                        download=False)
-    # voc12   = VOCDetection(VOC_ROOT, year="2012", image_set="trainval",
-    #                        download=True)
+    voc07   = VOCDetection(VOC_ROOT, year="2007", image_set="trainval",
+                           download=False)
+    voc12   = VOCDetection(VOC_ROOT, year="2012", image_set="trainval",
+                           download=True)
     coco20k = COCO20kDataset(COCO_ROOT, max_images=20_000)
 
-    # print(f"  VOC 2007 trainval : {len(voc07)} images")
-    # print(f"  VOC 2012 trainval : {len(voc12)} images")
+    print(f"  VOC 2007 trainval : {len(voc07)} images")
+    print(f"  VOC 2012 trainval : {len(voc12)} images")
     print(f"  COCO 20k          : {len(coco20k)} images")
 
     DATASETS = [
-        # ("VOC2007", voc07),
-        # ("VOC2012", voc12),
+        ("VOC2007", voc07),
+        ("VOC2012", voc12),
         ("COCO20k", coco20k),
     ]
     DS_NAMES = [d[0] for d in DATASETS]
@@ -662,12 +626,3 @@ if __name__ == "__main__":
 
     print("=" * (W + COL * 3))
     print(f"\nTotal time: {elapsed_total / 60:.1f} min")
-    print("\nNotes:")
-    print("  DeiT-III+reg : authors did not release weights. Proxy used:")
-    print("    vit_base_patch16_reg4_gap_256.sbb_in12k_ft_in1k (or first available candidate).")
-    print("    Same proxy as used in Appendix C (Figure 13) replication.")
-    print("  OpenCLIP+reg : test-time-register proxy used "
-          "(amildravid4292/clip-vitb16-test-time-registers).")
-    print("  DINOv2       : ViT-Large (as specified in the paper).")
-    print("  Paper's DINOv2 models used antialiased position embedding "
-          "interpolation — public timm checkpoints may differ slightly.")

@@ -1,59 +1,3 @@
-"""
-APPENDIX D.3 REPLICATION — Figure 16: Positional Focus
-"Vision Transformers Need Registers" (Darcet et al., ICLR 2024)
-
-════════════════════════════════════════════════════════════════════════════════
-DATASET: Oxford-IIIT Pet Dataset  (auto-downloaded, ~800 MB)
-
-  The paper used ImageNet-22k. We use Oxford-IIIT Pet as a freely available
-  proxy with the same key properties:
-    • Single object centred in every image (one pet per photo)
-    • Clean or softly blurred background (photographers focus on the animal)
-    • 37 breeds × ~200 images = 7,349 total  (trainval + test combined)
-    • Auto-downloadable via torchvision — no license needed
-
-  This matches the "object-centric images" property the paper describes as
-  the reason the average attention maps form centred blobs. COCO (scene
-  images) produced horizontally elongated blobs; Pets will produce the
-  rounder, symmetric blobs seen in the paper's Figure 16.
-
-  Fallback chain if Pets can't be downloaded:
-    → COCO val2017 → FGVC-Aircraft → any folder with images
-
-════════════════════════════════════════════════════════════════════════════════
-WHAT THIS REPLICATES
-
-  Figure 16: six heatmaps of the AVERAGE attention map in the last layer
-  of DINOv2+reg4 (ViT-Large), one per token type:
-    (a) [CLS]  (b) reg₀  (c) reg₁  (d) reg₂  (e) reg₃  (f) patch
-
-  Each heatmap = mean over N images of:
-    row i of the softmax attention matrix → reshape to 37×37 spatial grid
-
-  Key findings to reproduce:
-    1. CLS and registers → broad, diffuse attention (global information)
-    2. Patch              → tight, localised attention (local information)
-    3. Registers differ from each other: reg₃ focuses on borders, others on centre
-    4. reg₂ tends slightly toward upper image regions
-
-════════════════════════════════════════════════════════════════════════════════
-HOW IT WORKS
-
-  Token layout: [CLS=0, reg₀=1, reg₁=2, reg₂=3, reg₃=4, p₀=5 … p₁₃₆₈=1373]
-
-  For each image:
-    1. Forward pass through DINOv2+reg4
-    2. Hook captures softmax attention: A ∈ R^{H × N_total × N_total}
-    3. Average across H=16 heads → Ā ∈ R^{N_total × N_total}
-    4. For each token i: extract row i, patch columns → reshape to 37×37
-    5. Accumulate across images → divide by count
-
-  fused_attn is disabled so timm materialises the softmax matrix explicitly,
-  making it accessible via a hook on attn_drop (fires right after softmax).
-
-Install: !pip install timm torchvision
-"""
-
 import os, gc
 import numpy as np
 import torch
@@ -65,7 +9,7 @@ from tqdm import tqdm
 import timm
 import matplotlib.pyplot as plt
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# Config 
 MODEL_NAME  = "vit_large_patch14_reg4_dinov2.lvd142m"
 IMG_SIZE    = 518
 PATCH_SIZE  = 14
@@ -77,20 +21,17 @@ N_PREFIX    = 1 + N_REGS              # 5  (CLS + 4 registers)
 N_IMAGES    = 500                      # images to average; 500 gives stable maps
 BATCH_SIZE  = 8                        # safe for ViT-Large on T4
 NUM_WORKERS = 2
-DATA_ROOT   = "./data"
-SAVE_PATH   = "figure_16_replication.png"
+DATA_ROOT   = "./src/Raffaele/data"
+SAVE_PATH   = "./src/Raffaele/img/figure_16_replication.png"
 
-# Fallback image directories if Pets download fails
 FALLBACK_DIRS = [
     "./coco/images/val2017",
     "./src/Raffo/datxa/coco/images/val2017",
     "./data/fgvc-aircraft-2013b/data/images",
 ]
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 # ==============================================================================
-# 1. DATASET  —  Oxford-IIIT Pet (primary) with fallback chain
+# 1. DATASET  —  Oxford-IIIT Pet 
 # ==============================================================================
 
 def make_transform():
@@ -147,7 +88,7 @@ class FlatImageFolder(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         try:
             img = Image.open(self.paths[idx]).convert("RGB")
-            return self.transform(img), 0   # dummy label
+            return self.transform(img), 0 
         except Exception:
             return torch.zeros(3, IMG_SIZE, IMG_SIZE), 0
 
@@ -169,11 +110,6 @@ def get_fallback_loader(batch_size, max_images, num_workers):
 
 # ==============================================================================
 # 2. ATTENTION MATRIX EXTRACTOR
-#    fused_attn=True (default) routes through F.scaled_dot_product_attention,
-#    a fused CUDA kernel that never materialises the softmax matrix.
-#    Setting fused_attn=False forces explicit computation and makes the
-#    (B, H, N, N) weight matrix available to hooks.
-#    We hook attn_drop which receives the softmax weights as its input.
 # ==============================================================================
 
 class AttentionMatrixExtractor:
@@ -184,7 +120,6 @@ class AttentionMatrixExtractor:
         for block in model.blocks:
             block.attn.fused_attn = False
 
-        # Hook attn_drop of the LAST block — input = (B, H, N, N) softmax weights
         def _hook(module, inputs, output):
             self._weights = inputs[0].detach().cpu()
 
@@ -201,9 +136,6 @@ class AttentionMatrixExtractor:
 
 # ==============================================================================
 # 3. ACCUMULATE AVERAGE ATTENTION MAPS
-#    Mathematical formulation:
-#      M_i = (1/N) Σ_n  mean_h[ A^(n)_{h, i, N_prefix:} ]   ∈ R^{37×37}
-#    where i ∈ {0=CLS, 1=reg₀, 2=reg₁, 3=reg₂, 4=reg₃, N_prefix+centre=patch}
 # ==============================================================================
 
 @torch.inference_mode()
@@ -212,7 +144,6 @@ def accumulate_maps(model, extractor, loader, device):
     sums = {k: np.zeros(N_PATCHES, dtype=np.float64) for k in keys}
     n    = 0
 
-    # Absolute row indices in the attention matrix
     rows = {
         "CLS":   0,
         "reg_0": 1, "reg_1": 2, "reg_2": 3, "reg_3": 4,
@@ -221,13 +152,12 @@ def accumulate_maps(model, extractor, loader, device):
     patch_cols = slice(N_PREFIX, N_PREFIX + N_PATCHES)
 
     for batch in tqdm(loader, desc="  averaging", leave=True):
-        # Handle both (imgs,) and (imgs, labels) batch formats
         imgs = batch[0] if isinstance(batch, (list, tuple)) else batch
         model(imgs.to(device, non_blocking=True))
-        A = extractor.get()          # (B, H, N_total, N_total)
+        A = extractor.get()          
         if A is None: continue
 
-        # Average across heads: (B, N_total, N_total)
+        # Average across heads
         A_mean = A.mean(dim=1).numpy()
         B = A_mean.shape[0]
 
@@ -242,9 +172,7 @@ def accumulate_maps(model, extractor, loader, device):
 
 
 # ==============================================================================
-# 4. PLOT  —  Figure 16 style
-#    inferno colormap (matches paper's orange-red palette)
-#    Shared vmax across CLS + registers; separate for patch (different scale)
+# 4. PLOT
 # ==============================================================================
 
 def plot_figure_16(maps, n_images, dataset_name, save_path):
@@ -255,7 +183,6 @@ def plot_figure_16(maps, n_images, dataset_name, save_path):
                               gridspec_kw={"wspace": 0.04})
     fig.patch.set_facecolor("white")
 
-    # Shared scale for special tokens; independent for patch
     vmax_special = float(np.stack([maps[k] for k in order[:-1]]).max())
     vmax_patch   = float(maps["patch"].max())
 
@@ -300,13 +227,6 @@ def print_diagnostics(maps, n_images):
         print(f"{label:<8}  {entr:>8.3f}  {bord:>8.1f}%  {upp:>7.1f}%  "
               f"{supp:>9.1f}%")
 
-    print()
-    print("Paper's observations (Figure 16):")
-    print("  entropy : CLS ≈ registers >> patch  (global vs local)")
-    print("  border% : reg₃ highest among registers")
-    print("  upper%  : reg₂ slightly higher than others")
-    print("  support%: patch << all others  (highly localised)")
-
 
 # ==============================================================================
 # 6. MAIN
@@ -320,7 +240,7 @@ if __name__ == "__main__":
     print(f"Model : {MODEL_NAME}")
     print(f"Grid  : {GRID_SIZE}×{GRID_SIZE} = {N_PATCHES} patches\n")
 
-    # ── Dataset ───────────────────────────────────────────────────────────────
+    # Dataset
     print("Loading dataset …")
     loader, n_images = get_pet_loader(DATA_ROOT, BATCH_SIZE, N_IMAGES, NUM_WORKERS)
     dataset_name = "Oxford-IIIT Pet"
@@ -333,9 +253,9 @@ if __name__ == "__main__":
     if loader is None or n_images == 0:
         raise FileNotFoundError(
             "No images found. Oxford-IIIT Pet download failed and no fallback "
-            "directories are available. Check your internet connection.")
+        )
 
-    # ── Model ─────────────────────────────────────────────────────────────────
+    # Model
     print(f"\nLoading {MODEL_NAME} …")
     model     = timm.create_model(MODEL_NAME, pretrained=True).to(device).eval()
     extractor = AttentionMatrixExtractor(model)
@@ -343,7 +263,7 @@ if __name__ == "__main__":
           f"fused_attn={model.blocks[-1].attn.fused_attn}  "
           f"(should be False)")
 
-    # ── Accumulate ────────────────────────────────────────────────────────────
+    # Accumulate
     print(f"\nAveraging attention over {n_images} images …")
     maps, n_used = accumulate_maps(model, extractor, loader, device)
 
@@ -352,6 +272,6 @@ if __name__ == "__main__":
     if device.type == "cuda": torch.cuda.empty_cache()
     gc.collect()
 
-    # ── Plot & diagnostics ────────────────────────────────────────────────────
+    # Plot and diagnostics
     plot_figure_16(maps, n_used, dataset_name, SAVE_PATH)
     print_diagnostics(maps, n_used)
