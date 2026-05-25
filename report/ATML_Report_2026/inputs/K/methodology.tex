@@ -3,7 +3,7 @@
 This reproduction is implemented through original codebase that follows the procedure described in the paper and relies on public pretrained checkpoints loaded through \texttt{timm}, \texttt{open\_clip\_torch}, and Hugging Face \texttt{transformers}. Dataset loading is done through \texttt{torchvision} where possible otherwise is done through direct download from the dataset official website.
 
 \subsubsection{Model descriptions}
-All 4 experiments are conducted using ViT models without register as features extractor. Experiment 1 is run with \texttt{DeiT-III-B}, \texttt{DeiT-III ViT-B/16}, \texttt{DeiT-III ViT-L/16}, \texttt{OpenCLIP ViT-B/16}, \texttt{OpenCLIP ViT-L/14}, \texttt{DINO ViT-B/16}, and \texttt{DINOv2 ViT-g/14}. Experiment 2,3,4 employ \texttt{DINOv2 ViT-g/14} model only. Model details are in table \ref{tab:models}
+All 4 experiments are conducted using ViT models without register as features extractor. Experiment 1 is run with \texttt{DeiT-III-B}, \texttt{DeiT-III ViT-B/16}, \texttt{DeiT-III ViT-L/16}, \texttt{OpenCLIP ViT-B/16}, \texttt{OpenCLIP ViT-L/14}, \texttt{DINO ViT-B/16}, and \texttt{DINOv2 ViT-g/14}. Experiment 2,3,4 employ \texttt{DINOv2 ViT-g/14} and \texttt{DINO ViT-B/16} models only. Model details are in table \ref{tab:models}
 
 \subsubsection{Datasets}
 Datasets used in the following 4 experiments are \texttt{cifar10}, \texttt{cifar100}, \texttt{caltech101}, \texttt{dtd}, \texttt{aircraft}, \texttt{flowers102}, \texttt{food101}, and \texttt{pets}. See table \ref{tab:datasets} for details. 
