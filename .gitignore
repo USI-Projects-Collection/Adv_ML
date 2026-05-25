@@ -56,7 +56,7 @@ bin/
 
 
 # per non fillare il cluster
-# *.pdf
+*.pdf
 # *.png
 
 # remove data folder from ViTs_exp
@@ -94,7 +94,7 @@ node_modules/
 *.toc
 *.xdv
 *.xml
-# *.bib
+*.bib
 
 # TikZ / PGFPlots externalization
 *.tikz
@@ -133,24 +133,22 @@ _minted*/
 *.png
 *.bmp
 
-*.pdf
-src/Poli/README.md
-
 # codex files
 AGENT.md
 PLAN.md
 codex/
 
-src/Paolo/PRESENTATION_NOTES.md
 
 # logs and results folder
 logs/
-results/
-report/ATML_Report_2026/inputs/P/OLD/
 
 src/Kun/README.md
 
+# presentation notes
+src/Paolo/note/
+src/Paolo/PRESENTATION_NOTES.md
+
 # images for report
 !src/Kun/img/**
-!src/Poli/results/**
+!src/Paolo/results/**
 !src/Raffo/img/**
